@@ -13,3 +13,5 @@ torchvision
 tqdm
 captum
 kymatio
+scikit-cuda
+cupy-cuda12x
