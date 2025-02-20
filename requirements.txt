@@ -14,4 +14,5 @@ tqdm
 captum
 kymatio
 scikit-cuda
-cupy-cuda12x
+cupy-cuda12x==12.2.0
+opencv-python

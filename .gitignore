@@ -172,3 +172,4 @@ cython_debug/
 
 dataset/
 dataset.zip
+dataset_resized/
