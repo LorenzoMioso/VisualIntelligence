@@ -1,19 +1,42 @@
+import glob
+import json
 import os
 import random
+import shutil
+from zipfile import ZipFile
 
+import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
+import torch
 from PIL import Image
+from sklearn.model_selection import StratifiedKFold
+from torch.utils.data import DataLoader, Dataset
+from torchvision import transforms
+from torchvision.io import ImageReadMode
+from torchvision.io.image import decode_jpeg, read_file
 from tqdm.auto import tqdm
 
-from src.config import ADENOCARCINOMA, datasetdir
-from src.data.dataset import class_0, class_1, create_dataset_df
+from dataset import class_0, class_1
+from src.config import (
+    ADENOCARCINOMA,
+    BENIGN,
+    KFOLDS,
+    SQUAMOUS_CELL_CARCINOMA,
+    TARGET_IMAGE_SIZE,
+    class_0,
+    class_1,
+    datasetdir,
+    device,
+)
+from src.dataset import DatasetCreator
 
 
 class DatasetVisualizer:
-    def __init__(self):
-        self.df = create_dataset_df()
+    def __init__(self, dataset_df):
+        self.df = dataset_df
 
     def plot_class_distribution(self):
         plt.figure(figsize=(10, 5))
@@ -81,14 +104,36 @@ class DatasetVisualizer:
         unique_shapes = np.unique(shapes, axis=0)
         print(f"Unique shapes: {unique_shapes}")  # 768x768
 
+    def show_augmented_image(self):
+        fold_stats = DatasetCreator().compute_fold_standardization_params()
+        idx = random.choice(range(len(self.df)))
+        # read as gray scale
+        image = Image.open(
+            f"{datasetdir}dataset_resized/{self.df.iloc[idx]['class']}/{self.df.iloc[idx]['filename']}"
+        )
+        fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+        ax[0].imshow(image)
+        ax[0].set_title(self.df.iloc[idx]["class"])
+        ax[0].axis("off")
 
-if __name__ == "__main__":
-    dv = DatasetVisualizer()
-    dv.plot_class_distribution()
-    plt.show()
-    # Calcolo colori medi
-    benign_path = "dataset/benign"
-    cancer_path = f"dataset/{ADENOCARCINOMA}"
-    benign_color, _ = dv.compute_class_color(f"{datasetdir}dataset/{class_0}")
-    cancer_color, _ = dv.compute_class_color(f"{datasetdir}dataset/{class_1}")
-    dv.visualize_class_colors(benign_color, cancer_color)
+        # Display the image after applying the transforms
+        transform = transforms.Compose(
+            [
+                # also add brightness change
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomVerticalFlip(),
+                transforms.RandomRotation(20),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=fold_stats["0"]["mean"], std=fold_stats["0"]["std"]
+                ),
+            ]
+        )
+
+        transformed_image = transform(image)
+        transformed_image = transformed_image.permute(1, 2, 0)
+
+        ax[1].imshow(transformed_image)
+        ax[1].set_title("Transformed image")
+        ax[1].axis("off")
+        plt.show()

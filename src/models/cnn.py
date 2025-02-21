@@ -3,10 +3,10 @@ import json
 import pandas as pd
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torchinfo import summary
 
-from src.config import TARGET_IMAGE_SIZE, basedir, device
-from src.data.dataset import create_dataloaders, create_dataset_df
+from src.config import TARGET_IMAGE_SIZE, device
 
 
 class ConvBlock(nn.Module):
@@ -55,30 +55,13 @@ class ImageClassifier(nn.Module):
         return x
 
 
-def test_model():
-    df = create_dataset_df()
-    with open(basedir + "fold_stats.json", "r") as f:
-        fold_stats = json.load(f)
-    print(fold_stats)
-    train_splits = pd.read_csv(basedir + "train_splits.csv")
-    val_splits = pd.read_csv(basedir + "val_splits.csv")
-    train_idx = train_splits["train_0"].values
-    val_idx = val_splits["val_0"].values
-    mean = fold_stats["0"]["mean"]
-    std = fold_stats["0"]["std"]
-
-    # Create dataloaders with fold-specific normalization
-    train_loader, val_loader = create_dataloaders(df, train_idx, val_idx, mean, std)
-
+def inspect_model_architecture(model, train_loader, val_loader):
     # check len of train and val loaders
     print(f"Train loader length: {len(train_loader)}")
     print(f"Val loader length: {len(val_loader)}")
-    model = ImageClassifier()
-    model.to(device)
     images, labels = next(iter(train_loader))
     print(f"Labels : {labels}")
 
-    print(f"Images shape: {images.shape}")
     image = images[0].unsqueeze(0).to(device)
     label = labels[0].unsqueeze(0).to(device)
 
@@ -89,10 +72,31 @@ def test_model():
         print(output)
 
     # check the model summary
-    print(
-        summary(
-            model,
-            input_size=(1, 1, TARGET_IMAGE_SIZE, TARGET_IMAGE_SIZE),
-            device=device,
-        )
+    summary(
+        model,
+        input_size=(1, 1, TARGET_IMAGE_SIZE, TARGET_IMAGE_SIZE),
+        device=device,
     )
+
+
+from torch.profiler import ProfilerActivity, profile, record_function
+
+
+def profile_model(model, train_loader):
+    with profile(
+        activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+        schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=2),
+        on_trace_ready=torch.profiler.tensorboard_trace_handler("profile"),
+    ) as prof:
+        for images, labels in train_loader:
+            images, labels = images.to(device), labels.to(device)
+            output = model(images.float())
+            loss = F.cross_entropy(output, labels)
+            loss.backward()
+            prof.step()
+            if prof.step_num == 40:
+                break
+
+    print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=10))
+    print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
+    print("Profiling finished.")

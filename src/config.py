@@ -1,9 +1,6 @@
 import torch
 import torch.nn as nn
 
-basedir = ""
-datasetdir = "../"
-
 ADENOCARCINOMA = "adenocarcinoma"
 BENIGN = "benign"
 SQUAMOUS_CELL_CARCINOMA = "squamous_cell_carcinoma"
