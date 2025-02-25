@@ -17,6 +17,12 @@ from tqdm.auto import tqdm
 from src.config import (
     ADENOCARCINOMA,
     BENIGN,
+    DATASET_PATH,
+    DATASET_RESIZED_PATH,
+    DATASET_ZIP_PATH,
+    FILE_PATH_FOLD_STATS,
+    FILE_PATH_TRAIN_SPLIT,
+    FILE_PATH_VAL_SPLIT,
     KFOLDS,
     SQUAMOUS_CELL_CARCINOMA,
     TARGET_IMAGE_SIZE,
@@ -28,31 +34,30 @@ from src.config import (
 
 class DatasetCreator:
     def __init__(self):
-        self.dataset_path = "./dataset"
+        pass
 
     def _dataset_exists(self, path, no_files=10000):
         # check if dir exists and contains at least no_files files
-        if not os.path.exists(self.dataset_path):
-            print(f"Folder not found in {self.dataset_path}")
+        if not os.path.exists(path):
+            print(f"Folder not found in {path}")
             return False
-        if len(list(glob.iglob(self.dataset_path + "/**", recursive=True))) < no_files:
-            print(f"Not enough files in {self.dataset_path}")
+        if len(list(glob.iglob(path + "/**", recursive=True))) < no_files:
+            print(f"Not enough files in {path}")
             return False
-        print(f"Dataset found in {self.dataset_path}")
+        print(f"Dataset found in {path}")
         return True
 
     def _extract_dataset(self):
-        with ZipFile("dataset.zip", "r") as zip_ref:
+        with ZipFile(DATASET_ZIP_PATH, "r") as zip_ref:
             zip_ref.extractall()
         # move folders to the right place
-        os.makedirs("dataset", exist_ok=True)
-        shutil.move(ADENOCARCINOMA, "dataset")
-        shutil.move(SQUAMOUS_CELL_CARCINOMA, "dataset")
-        shutil.move(BENIGN, "dataset")
+        os.makedirs(DATASET_PATH, exist_ok=True)
+        shutil.move(ADENOCARCINOMA, DATASET_PATH)
+        shutil.move(SQUAMOUS_CELL_CARCINOMA, DATASET_PATH)
+        shutil.move(BENIGN, DATASET_PATH)
 
-    def resize_dataset(self, size):
-        new_folder = "dataset_resized"
-        os.makedirs(new_folder, exist_ok=True)
+    def process_dataset(self, size):
+        os.makedirs(DATASET_RESIZED_PATH, exist_ok=True)
         for idx in tqdm(range(len(self.df))):
             # Read image with OpenCV
             img_path = (
@@ -64,26 +69,24 @@ class DatasetCreator:
             # Resize
             result = cv2.resize(gray, (size, size))
             # Save
-            dest_path = f"{new_folder}/{self.df.iloc[idx]['class']}/{self.df.iloc[idx]['filename']}"
+            dest_path = f"{DATASET_RESIZED_PATH}/{self.df.iloc[idx]['class']}/{self.df.iloc[idx]['filename']}"
             os.makedirs(os.path.dirname(dest_path), exist_ok=True)
             cv2.imwrite(dest_path, result)
 
     def _create_dataset_df(self):
-        allFilesClass0 = os.listdir(f"dataset/{class_0}")
-        allFilesClass1 = os.listdir(f"dataset/{class_1}")
+        allFilesClass0 = os.listdir(f"{DATASET_PATH}/{class_0}")
+        allFilesClass1 = os.listdir(f"{DATASET_PATH}/{class_1}")
         df = pd.DataFrame(columns=["filename", "class"])
         df["filename"] = allFilesClass0 + allFilesClass1
         df["class"] = [class_0] * len(allFilesClass0) + [class_1] * len(allFilesClass1)
         self.df = df
 
-    def init(
-        self, size, dataset_path="./dataset", dataset_resized_path="./dataset_resized"
-    ):
-        if not self._dataset_exists(dataset_path):
+    def init(self, size):
+        if not self._dataset_exists(DATASET_PATH):
             self._extract_dataset()
         self._create_dataset_df()
-        if not self._dataset_exists(dataset_resized_path):
-            self.resize_dataset(size)
+        if not self._dataset_exists(DATASET_RESIZED_PATH):
+            self.process_dataset(size)
         return self.df
 
     def create_splits(self):
@@ -105,15 +108,15 @@ class DatasetCreator:
             val_splits[f"val_{i}"] = val_indexes[i]
 
         # Saving the splits
-        train_splits.to_csv("train_splits.csv", index=False)
-        val_splits.to_csv("val_splits.csv", index=False)
+        train_splits.to_csv(FILE_PATH_TRAIN_SPLIT, index=False)
+        val_splits.to_csv(FILE_PATH_VAL_SPLIT, index=False)
         return train_splits, val_splits
 
     def _fold_z_score(self, train_idx, is_gray=True):
         """Calculate mean and std for a specific fold"""
 
         train_df = self.df.iloc[train_idx]
-        train_dataset = LungCancerDataset(train_df, "dataset_resized")
+        train_dataset = LungCancerDataset(train_df, DATASET_RESIZED_PATH)
 
         channels = 1 if is_gray else 3
         channels_sum = torch.zeros(
@@ -145,7 +148,7 @@ class DatasetCreator:
             "0": {"mean": mean[0].item(), "std": std[0].item()},
         }
 
-        with open("fold_stats.json", "w") as f:
+        with open(FILE_PATH_FOLD_STATS, "w") as f:
             json.dump(fold_stats, f)
 
         return mean.float(), std.float()
@@ -171,7 +174,7 @@ class DatasetCreator:
         print("Stats: ", fold_stats)
         print("Saving fold statistics...")
         ## delete old file
-        with open("fold_stats.json", "w") as f:
+        with open(FILE_PATH_FOLD_STATS, "w") as f:
             json.dump(
                 {
                     k: {"mean": v["mean"].tolist(), "std": v["std"].tolist()}
@@ -179,13 +182,12 @@ class DatasetCreator:
                 },
                 f,
             )
-        return fold_stats
 
     def get_standardization_params_from_file(self):
-        if not os.path.exists("fold_stats.json"):
-            print("File fold_stats.json not found")
+        if not os.path.exists(FILE_PATH_FOLD_STATS):
+            print(f"File not found in {FILE_PATH_FOLD_STATS}")
             return None
-        with open("fold_stats.json", "r") as f:
+        with open(FILE_PATH_FOLD_STATS, "r") as f:
             fold_stats = json.load(f)
         return fold_stats
 
@@ -264,10 +266,10 @@ class DataloaderFactory:
         val_df = self.df.iloc[val_idx]
 
         train_dataset = LungCancerDataset(
-            train_df, "dataset_resized", transform=train_transform
+            train_df, DATASET_RESIZED_PATH, transform=train_transform
         )
         val_dataset = LungCancerDataset(
-            val_df, "dataset_resized", transform=val_transform
+            val_df, DATASET_RESIZED_PATH, transform=val_transform
         )
 
         # Create dataloaders

@@ -1,16 +1,25 @@
 import json
 from timeit import default_timer as timer
 
-import matplotlib.pyplot as plt
 import pandas as pd
 import torch
 import torch.nn as nn
 from torch.nn import utils as nn_utils
 from tqdm.auto import tqdm
 
-from src.config import NUM_EPOCHS, TARGET_IMAGE_SIZE, device
+from src.config import (
+    FILE_PATH_FOLD_STATS,
+    FILE_PATH_TRAIN_SPLIT,
+    FILE_PATH_VAL_SPLIT,
+    FOLD_MODEL_RESULTS_PATH,
+    MODEL_CHECKPOINT_PATH,
+    NUM_EPOCHS,
+    TARGET_IMAGE_SIZE,
+    device,
+)
 from src.dataset import DataloaderFactory
-from src.models.cnn import ImageClassifier
+from src.models.cnn import CNNImageClassifier
+from src.models.scatnet import ScatNetImageClassifier
 
 
 class Trainer:
@@ -128,8 +137,9 @@ class Trainer:
         checkpoint = {
             "state_dict": self.model.state_dict(),
             "optimizer": optimizer.state_dict(),
+            "model_class": self.model.__class__.__name__,
         }
-        checkpoint_name = "checkpoint_" + str(split) + ".pth"
+        checkpoint_name = MODEL_CHECKPOINT_PATH + str(split) + ".pth"
         torch.save(checkpoint, checkpoint_name)
 
 
@@ -142,12 +152,12 @@ class CrossValidationTrainer:
         self.trainer = Trainer(model)
 
     def train_all_folds(self, df):
-        with open("fold_stats.json", "r") as f:
+        with open(FILE_PATH_FOLD_STATS, "r") as f:
             fold_stats = json.load(f)
         print(fold_stats)
 
-        train_splits = pd.read_csv("train_splits.csv")
-        val_splits = pd.read_csv("val_splits.csv")
+        train_splits = pd.read_csv(FILE_PATH_TRAIN_SPLIT)
+        val_splits = pd.read_csv(FILE_PATH_VAL_SPLIT)
 
         for i in range(1, 10):
             self.train_fold(i, df, train_splits, val_splits, fold_stats)
@@ -190,7 +200,7 @@ class CrossValidationTrainer:
                 "epochs": range(len(results["train_loss"])),
             }
         )
-        results_df_name = f"results_df_{fold_num}.csv"
+        results_df_name = f"{FOLD_MODEL_RESULTS_PATH}{fold_num}.csv"
         results_df.to_csv(results_df_name)
 
 
@@ -200,7 +210,13 @@ class ModelLoader:
         checkpoint = torch.load(
             filepath, map_location=torch.device(device), weights_only=False
         )
-        model = ImageClassifier().to(device)
+        # read model class from checkpoint
+        model_class = checkpoint["model_class"]
+        medelmap = {
+            CNNImageClassifier.__name__: CNNImageClassifier,
+            ScatNetImageClassifier.__name__: ScatNetImageClassifier,
+        }
+        model = medelmap[model_class]().to(device)
         model.load_state_dict(checkpoint["state_dict"])
         for parameter in model.parameters():
             parameter.requires_grad = False

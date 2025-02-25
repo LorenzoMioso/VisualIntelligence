@@ -1,15 +1,10 @@
-from src.config import (
-    ADENOCARCINOMA,
-    BENIGN,
-    KFOLDS,
-    SQUAMOUS_CELL_CARCINOMA,
-    TARGET_IMAGE_SIZE,
-    class_0,
-    class_1,
-    device,
-)
+import pandas as pd
+
+from src.config import FOLD_MODEL_RESULTS_PATH, TARGET_IMAGE_SIZE, device
 from src.dataset import DataloaderFactory, DatasetCreator
-from src.models.cnn import ImageClassifier, inspect_model_architecture, profile_model
+from src.models.cnn import CNNImageClassifier
+from src.models.utils import ModelAnalyzer
+from src.training.metrics import TrainingMetrics
 from src.training.training import CrossValidationTrainer
 
 
@@ -20,7 +15,8 @@ def main():
     train_splits, val_splits = dataset.create_splits()
     stats = dataset.get_standardization_params_from_file()
     if not stats:
-        stats = dataset.compute_fold_standardization_params()
+        dataset.compute_fold_standardization_params()
+    stats = dataset.get_standardization_params_from_file()
 
     # first fold dataloader
     train_idx = train_splits["train_0"].values
@@ -35,15 +31,27 @@ def main():
     print(f"Train loader length: {len(train_loader)}")
     print(f"Val loader length: {len(val_loader)}")
 
-    model = ImageClassifier()
+    model = CNNImageClassifier()
     model = model.to(device)
-    # inspect_model_architecture(model, train_loader, val_loader)
-    # profile_model(model, train_loader)
+    model_analyzer = ModelAnalyzer(model, train_loader, val_loader)
+    model_analyzer.inspect_model_architecture()
+    model_analyzer.profile_model()
 
     # train model
     cv_trainer = CrossValidationTrainer(model)
-    # cv_trainer.train_all_folds(df)
-    cv_trainer.train_fold(0, df, train_splits, val_splits, stats)
+    cv_trainer.train_all_folds(df)
+    #cv_trainer.train_fold(0, df, train_splits, val_splits, stats)
+
+    results_df_name = f"{FOLD_MODEL_RESULTS_PATH}{0}.csv"
+
+    results_from_csv = pd.read_csv(results_df_name)
+
+    tm = TrainingMetrics()
+    print("showing training results")
+    # tm.show_training_results(results_from_csv)
+
+    acc, f1 = tm.compute_fold_metrics(model, val_loader)
+    print(f"Accuracy: {acc}, F1: {f1}")
 
     # test model
     # xai

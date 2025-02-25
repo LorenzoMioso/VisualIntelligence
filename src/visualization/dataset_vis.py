@@ -23,12 +23,13 @@ from dataset import class_0, class_1
 from src.config import (
     ADENOCARCINOMA,
     BENIGN,
+    DATASET_PATH,
+    DATASET_RESIZED_PATH,
     KFOLDS,
     SQUAMOUS_CELL_CARCINOMA,
     TARGET_IMAGE_SIZE,
     class_0,
     class_1,
-    datasetdir,
     device,
 )
 from src.dataset import DatasetCreator
@@ -78,10 +79,10 @@ class DatasetVisualizer:
 
         # image inspection
 
-    def inspect_image_randomly(self, dataset_path=datasetdir + "dataset"):
+    def inspect_image_randomly(self):
         idx = random.choice(range(len(self.df)))
         image = Image.open(
-            f"{dataset_path}/{self.df.iloc[idx]['class']}/{self.df.iloc[idx]['filename']}"
+            f"{DATASET_PATH}/{self.df.iloc[idx]['class']}/{self.df.iloc[idx]['filename']}"
         )
         plt.imshow(image)
         plt.title(self.df.iloc[idx]["class"])
@@ -96,7 +97,7 @@ class DatasetVisualizer:
         shapes = []
         for idx in tqdm(range(len(self.df))):
             image = Image.open(
-                f"dataset/{self.df.iloc[idx]['class']}/{self.df.iloc[idx]['filename']}"
+                f"{DATASET_PATH}/{self.df.iloc[idx]['class']}/{self.df.iloc[idx]['filename']}"
             )
             shapes.append(image.size)
 
@@ -109,7 +110,7 @@ class DatasetVisualizer:
         idx = random.choice(range(len(self.df)))
         # read as gray scale
         image = Image.open(
-            f"{datasetdir}dataset_resized/{self.df.iloc[idx]['class']}/{self.df.iloc[idx]['filename']}"
+            f"{DATASET_RESIZED_PATH}/{self.df.iloc[idx]['class']}/{self.df.iloc[idx]['filename']}"
         )
         fig, ax = plt.subplots(1, 2, figsize=(10, 5))
         ax[0].imshow(image)

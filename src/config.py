@@ -16,3 +16,14 @@ KFOLDS = 10
 NUM_EPOCHS = 50
 PATIENCE = 10
 MIN_DELTA = 0.001
+
+DATASET_ZIP_PATH = "dataset.zip"
+DATASET_PATH = "dataset"
+DATASET_RESIZED_PATH = "dataset_resized"
+# Output files
+FILE_PATH_VAL_SPLIT = "outputs/val_split.csv"
+FILE_PATH_TRAIN_SPLIT = "outputs/train_split.csv"
+FILE_PATH_FOLD_STATS = "outputs/stats.json"
+
+FOLD_MODEL_RESULTS_PATH = "outputs/results_df_"
+MODEL_CHECKPOINT_PATH = "outputs/model_checkpoint_"
