@@ -5,6 +5,8 @@ from torch.profiler import ProfilerActivity, profile
 from torchinfo import summary
 
 from src.config import TARGET_IMAGE_SIZE, device
+from src.models.cnn import CNNImageClassifier
+from src.models.scatnet import ScatNetImageClassifier
 
 
 class ModelAnalyzer:
@@ -71,3 +73,21 @@ class ModelAnalyzer:
         print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=10))
         print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
         print("Profiling finished.")
+
+    def load_checkpoint(self, filepath):
+        checkpoint = torch.load(
+            filepath, map_location=torch.device(device), weights_only=False
+        )
+        # read model class from checkpoint
+        model_class = checkpoint["model_class"]
+        medelmap = {
+            CNNImageClassifier.__name__: CNNImageClassifier,
+            ScatNetImageClassifier.__name__: ScatNetImageClassifier,
+        }
+        model = medelmap[model_class]().to(device)
+        model.load_state_dict(checkpoint["state_dict"])
+        for parameter in model.parameters():
+            parameter.requires_grad = False
+        model.eval()
+        self.model = model
+        return model

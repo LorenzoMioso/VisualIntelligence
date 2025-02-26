@@ -204,21 +204,3 @@ class CrossValidationTrainer:
         results_df.to_csv(results_df_name)
 
 
-class ModelLoader:
-    @staticmethod
-    def load_checkpoint(filepath):
-        checkpoint = torch.load(
-            filepath, map_location=torch.device(device), weights_only=False
-        )
-        # read model class from checkpoint
-        model_class = checkpoint["model_class"]
-        medelmap = {
-            CNNImageClassifier.__name__: CNNImageClassifier,
-            ScatNetImageClassifier.__name__: ScatNetImageClassifier,
-        }
-        model = medelmap[model_class]().to(device)
-        model.load_state_dict(checkpoint["state_dict"])
-        for parameter in model.parameters():
-            parameter.requires_grad = False
-        model.eval()
-        return model
