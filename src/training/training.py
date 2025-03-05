@@ -107,7 +107,7 @@ class Trainer:
 
             if val_acc > best_val:
                 best_val = val_acc
-                self.save_checkpoint(optimizer, split)
+                self.save_checkpoint(optimizer, split, self.model.__class__)
 
             self._log_progress(epoch, train_loss, train_acc, val_loss, val_acc)
             self._store_results(results, train_loss, train_acc, val_loss, val_acc)
@@ -133,13 +133,20 @@ class Trainer:
         results["val_loss"].append(val_loss)
         results["val_acc"].append(val_acc)
 
-    def save_checkpoint(self, optimizer, split):
+    def save_checkpoint(
+        self,
+        optimizer,
+        split,
+        model_class,
+    ):
         checkpoint = {
             "state_dict": self.model.state_dict(),
             "optimizer": optimizer.state_dict(),
             "model_class": self.model.__class__.__name__,
         }
-        checkpoint_name = MODEL_CHECKPOINT_PATH + str(split) + ".pth"
+        checkpoint_name = (
+            MODEL_CHECKPOINT_PATH + str(split) + "_" + model_class.__name__ + ".pth"
+        )
         torch.save(checkpoint, checkpoint_name)
 
 
@@ -187,9 +194,9 @@ class CrossValidationTrainer:
             f"Total training time for split {fold_num}: {end_time-start_time:.3f} seconds"
         )
 
-        self._save_fold_results(fold_num, model_results)
+        self._save_fold_results(fold_num, model_results, self.model.__class__)
 
-    def _save_fold_results(self, fold_num, results):
+    def _save_fold_results(self, fold_num, results, model_class):
         results = dict(list(results.items()))
         results_df = pd.DataFrame(
             {
@@ -200,7 +207,7 @@ class CrossValidationTrainer:
                 "epochs": range(len(results["train_loss"])),
             }
         )
-        results_df_name = f"{FOLD_MODEL_RESULTS_PATH}{fold_num}.csv"
+        results_df_name = (
+            f"{FOLD_MODEL_RESULTS_PATH}{fold_num}{model_class.__name__}.csv"
+        )
         results_df.to_csv(results_df_name)
-
-

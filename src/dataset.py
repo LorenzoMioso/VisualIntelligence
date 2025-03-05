@@ -193,7 +193,7 @@ class DatasetCreator:
 
 
 class LungCancerDataset(Dataset):
-    def __init__(self, df, folder_path, transform=None, cache_size=1000):
+    def __init__(self, df, folder_path, transform=None, cache_size=100):
         self.df = df
         self.folder_path = folder_path
         self.transform = transform

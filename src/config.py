@@ -23,7 +23,8 @@ DATASET_RESIZED_PATH = "dataset_resized"
 # Output files
 FILE_PATH_VAL_SPLIT = "outputs/val_split.csv"
 FILE_PATH_TRAIN_SPLIT = "outputs/train_split.csv"
-FILE_PATH_FOLD_STATS = "outputs/stats.json"
+FILE_PATH_FOLD_STATS = "outputs/norm_stats.json"
 
 FOLD_MODEL_RESULTS_PATH = "outputs/results_df_"
-MODEL_CHECKPOINT_PATH = "outputs/model_checkpoint_"
+MODEL_CHECKPOINT_PATH = "outputs/checkpoint_"
+MODEL_RESULT_METRICS_PATH = "outputs/metrics_"

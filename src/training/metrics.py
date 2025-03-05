@@ -10,6 +10,7 @@ from src.config import (
     FILE_PATH_TRAIN_SPLIT,
     FILE_PATH_VAL_SPLIT,
     MODEL_CHECKPOINT_PATH,
+    MODEL_RESULT_METRICS_PATH,
     device,
 )
 
@@ -91,12 +92,14 @@ class TrainingMetrics:
         f1 = self._f1_score(y_true, y_pred)
         return accuracy, f1
 
-    def compute_metrics_all_folds(self, model_loader, dataloader_factory, df):
+    def compute_metrics_all_folds(self, model_loader, dataloader_factory, model_class):
         accuracies = []
         f1_scores = []
 
         for i in range(10):
-            model = model_loader.load_checkpoint(f"{MODEL_CHECKPOINT_PATH}{i}.pth")
+            model = model_loader.load_checkpoint(
+                f"{MODEL_CHECKPOINT_PATH}{i}_{model_class.__name__}.pth"
+            )
             train_idx = self.train_splits[f"train_{i}"].values
             val_idx = self.val_splits[f"val_{i}"].values
             mean = self.fold_stats[str(i)]["mean"]
@@ -117,9 +120,15 @@ class TrainingMetrics:
         print(f"\nMean Accuracy: {mean_accuracy:.4f}")
         print(f"Mean F1 Score: {mean_f1_score:.4f}")
 
-        return {
+        result = {
             "accuracies": accuracies,
             "f1_scores": f1_scores,
             "mean_accuracy": mean_accuracy,
             "mean_f1_score": mean_f1_score,
         }
+
+        # save to file
+        with open(MODEL_RESULT_METRICS_PATH, "w") as f:
+            json.dump(result, f, indent=4)
+
+        return result

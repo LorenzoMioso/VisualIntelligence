@@ -13,4 +13,3 @@
   - still learning the color of the class
 - gray scale : hard to classify :
   - resnet style model is working well
-
