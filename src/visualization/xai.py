@@ -11,6 +11,21 @@ class XAI:
     def __init__(self, model):
         self.model = model
 
+    def normalize_image_for_display(self, image):
+        """
+        Normalize image data for display
+
+        Args:
+            image_array: The image array to normalize
+
+        Returns:
+            Normalized image array
+        """
+        image = image - image.min()
+        if image.max() > 0:
+            image = image / image.max()
+        return image
+
     def show_conv_filters(self):
         # inspect filters
         conv_layers = []
@@ -36,9 +51,9 @@ class XAI:
             for i in range(n_filters):
                 for j in range(n_channels):
                     if n_channels == 1:
-                        ax = axes[i] if n_filters > 1 else axes
+                        ax = axes[i] if n_filters > 1 else axes  # type: ignore
                     else:
-                        ax = axes[j, i] if n_filters > 1 else axes[j]
+                        ax = axes[j, i] if n_filters > 1 else axes[j]  # type: ignore
 
                     img = weights[i, j]
                     ax.imshow(img, cmap="viridis")
@@ -74,40 +89,73 @@ class XAI:
         plt.show()
 
     def backpropagation(self, image):
+        # Set model to training mode to enable gradient computation
+        self.model.eval()
+
+        # Ensure model is on the correct device
+        self.model = self.model.to(device)
+
+        # Make sure image is on the same device as the model and properly formatted
+        image = image.to(device)
+
+        # Check if image already has batch dimension
+        if len(image.shape) == 3:
+            image = image.unsqueeze(0)  # Add batch dimension if needed
+
         # Create a gradient object
-        image.requires_grad = True
-        print("image shape: ", image.shape)
+        image = image.clone().detach().requires_grad_(True)
+        print("Image shape:", image.shape)
+        print("Image device:", image.device)
+        print("Model device:", next(self.model.parameters()).device)
+
+        # Forward pass
         output = self.model(image)
+        print(f"Output : {output}")
 
-        # Create a tensor with the same shape as the output and set the predicted class to one
-        target = torch.zeros_like(output)
-        target[0, output.argmax()] = 1
+        # Get the predicted class
+        predicted_class = torch.argmax(torch.softmax(output, dim=1), dim=1)
+        print(f"Predicted class: {predicted_class.item()}")
 
-        # Backward pass
-        output.backward(gradient=target)
+        # Use the predicted class directly
+        print("Output for predicted class:", output[0, predicted_class])
+        output_for_class = output[0, predicted_class]
+        print(f"Output for predicted class _ {output_for_class}")
+
+        # Backward pass (we want to compute gradient with respect to input)
+        output_for_class.backward()
 
         # show gradients
+        if image.grad is None:
+            print(
+                "No gradients were computed. The model might not support backpropagation."
+            )
+            return
+
         gradient = image.grad.detach().cpu().numpy()
-        gradient = gradient - gradient.min()
-        gradient /= gradient.max()
+        gradient = self.normalize_image_for_display(gradient)
 
         # Plot the input image and gradients in a single chart
-        fig, axes = plt.subplots(1, gradient.shape[1] + 1, figsize=(20, 20))
+        fig, axes = plt.subplots(1, 2, figsize=(12, 6))
 
         # Plot the input image
         input_image = image.detach().cpu().numpy().squeeze(0)
-        input_image = input_image - input_image.min()
-        input_image /= input_image.max()
-        input_image = input_image.transpose(1, 2, 0)
+        input_image = self.normalize_image_for_display(input_image)
+        input_image = input_image.squeeze(0)
+
+        print(f"Input image shape for plotting: {input_image.shape}")
         axes[0].imshow(input_image, cmap="gray")
         axes[0].axis("off")
         axes[0].set_title("Input Image")
         print(f"Gradient shape: {gradient.shape}")
 
         # Plot each gradient channel
-        axes[1].imshow(gradient[0].squeeze(0), cmap="gray")
+        grad_vis = gradient.squeeze(0)
+        grad_vis = grad_vis.squeeze(0)
+
+        print(f"Gradient shape for plotting: {grad_vis.shape}")
+        axes[1].imshow(grad_vis, cmap="hot")
         axes[1].axis("off")
-        axes[1].set_title(f"Gradient {1}")
+        axes[1].set_title("Gradient")
 
         plt.tight_layout()
         plt.show()
@@ -119,43 +167,77 @@ class XAI:
         # Replace ReLU with GuidedBackpropReLU
         replace_relu_with_guided(self.model)
 
-        # Enable gradients for the input image
-        image.requires_grad = True
+        # Ensure model is on correct device
+        self.model = self.model.to(device)
+
+        # Make sure image is on the same device as the model and properly formatted
+        image = image.to(device)
+
+        # Check if image already has batch dimension
+        if len(image.shape) == 3:
+            image = image.unsqueeze(0)  # Add batch dimension if needed
+
+        print("Image shape for guided backprop:", image.shape)
+        print("Image device:", image.device)
+        print("Model device:", next(self.model.parameters()).device)
+
+        # Clone and ensure input requires gradients
+        image = image.clone().detach().requires_grad_(True)
 
         # Forward pass
         output = self.model(image)
 
+        # Check if gradients are available
+        if not hasattr(output, "grad_fn") or output.grad_fn is None:
+            print(
+                "Warning: output does not have grad_fn, cannot compute guided backpropagation"
+            )
+            return
+
         # Zero all existing gradients
         self.model.zero_grad()
 
-        # Create a tensor with the same shape as the output and set the predicted class to one
-        target = torch.zeros_like(output)
-        target[0, output.argmax()] = 1
+        # Get the predicted class
+        predicted_class = torch.argmax(torch.softmax(output, dim=1), dim=1)
+        print(f"Predicted class: {predicted_class.item()}")
+
+        # Use the predicted class directly
+        output_for_class = output[0, predicted_class]
 
         # Backward pass
-        output.backward(gradient=target)
+        output_for_class.backward()
+
+        # Check if gradients were computed
+        if image.grad is None:
+            print("No gradients were computed. Using alternative visualization method.")
+            return
 
         # Get the gradients
-        gradient = image.grad.data.cpu().numpy()[0]
+        gradient = image.grad.detach().cpu().numpy()
 
         # Normalize the gradients
-        gradient = gradient - gradient.min()
-        gradient /= gradient.max()
+        gradient = self.normalize_image_for_display(gradient)
 
         # Plot the original image and gradients
         fig, axes = plt.subplots(1, 2, figsize=(10, 5))
 
         # Plot the original image
         original_image = image.detach().cpu().numpy().squeeze(0)
-        original_image = original_image - original_image.min()
-        original_image /= original_image.max()
-        original_image = original_image.transpose(1, 2, 0)
+        original_image = self.normalize_image_for_display(original_image)
+
+        original_image = original_image.squeeze(0)
+
+        print(f"Original image shape for plotting: {original_image.shape}")
         axes[0].imshow(original_image, cmap="gray")
         axes[0].axis("off")
         axes[0].set_title("Original Image")
 
         # Plot the gradients
-        axes[1].imshow(gradient.transpose(1, 2, 0), cmap="gray")
+        grad_vis = gradient.squeeze(0)
+        grad_vis = grad_vis.squeeze(0)
+
+        print(f"Gradient shape for plotting: {grad_vis.shape}")
+        axes[1].imshow(grad_vis, cmap="hot")
         axes[1].axis("off")
         axes[1].set_title("Guided Backpropagation")
 
@@ -167,15 +249,18 @@ class GuidedBackpropReLU(torch.autograd.Function):
     @staticmethod
     def forward(ctx, input):
         positive_mask = (input > 0).type_as(input)
-        ctx.save_for_backward(input, positive_mask)
-        return input.clamp(min=0)
+        output = input.clamp(min=0)
+        ctx.save_for_backward(positive_mask)
+        return output
 
     @staticmethod
     def backward(ctx, grad_output):
-        input, positive_mask = ctx.saved_tensors
+        (positive_mask,) = ctx.saved_tensors
         grad_input = grad_output.clone()
-        grad_input[input <= 0] = 0
-        grad_input[positive_mask <= 0] = 0
+        # Zero out gradient for negative input
+        grad_input = grad_input * positive_mask
+        # Zero out gradient for negative gradients
+        grad_input = grad_input.clamp(min=0)
         return grad_input
 
 

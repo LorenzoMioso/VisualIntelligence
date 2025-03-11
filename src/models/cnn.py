@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+from src.models.scatnet import FeatureClassifier
+
 
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1):
@@ -13,36 +15,42 @@ class ConvBlock(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, x):
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out = self.dropout(out)
-        out = self.relu(out)
-        return out
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.conv2(x)
+        x = self.bn2(x)
+        x = self.dropout(x)
+        x = self.relu(x)
+        return x
 
 
 class CNNImageClassifier(nn.Module):
-    def __init__(self, num_classes=2):
+    def __init__(self):
         super().__init__()
+
+        # feature extraction
         self.conv1 = nn.Sequential(
             nn.Conv2d(1, 8, 11, stride=2, padding=2),
             nn.BatchNorm2d(8),
             nn.ReLU(),
             nn.MaxPool2d(2, stride=2),
         )
-
-        self.layer1 = ConvBlock(8, 16)
+        self.conv2 = ConvBlock(8, 16)
+        # pool
         self.avgpool = nn.AdaptiveAvgPool2d(1)
-        self.dropout = nn.Dropout(0.3)
-        self.fc = nn.Linear(16, num_classes)
+        # classifier
+        self.classifier = FeatureClassifier(16)
 
     def forward(self, x):
+        # print(f"forward: {x.shape}")
         x = self.conv1(x)
-        x = self.layer1(x)
+        # print(f"conv1: {x.shape}")
+        x = self.conv2(x)
+        # print(f"conv2: {x.shape}")
         x = self.avgpool(x)
+        # print(f"avgpool: {x.shape}")
         x = torch.flatten(x, 1)
-        x = self.dropout(x)
-        x = self.fc(x)
+        # print(f"flatten: {x.shape}")
+        x = self.classifier(x)
         return x

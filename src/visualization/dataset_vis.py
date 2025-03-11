@@ -1,37 +1,15 @@
-import glob
-import json
 import os
 import random
-import shutil
-from zipfile import ZipFile
 
-import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import seaborn as sns
-import torch
-from PIL import Image
-from sklearn.model_selection import StratifiedKFold
-from torch.utils.data import DataLoader, Dataset
+from PIL import Image, ImageFile
+from torch import Tensor
 from torchvision import transforms
-from torchvision.io import ImageReadMode
-from torchvision.io.image import decode_jpeg, read_file
 from tqdm.auto import tqdm
 
-from dataset import class_0, class_1
-from src.config import (
-    ADENOCARCINOMA,
-    BENIGN,
-    DATASET_PATH,
-    DATASET_RESIZED_PATH,
-    KFOLDS,
-    SQUAMOUS_CELL_CARCINOMA,
-    TARGET_IMAGE_SIZE,
-    class_0,
-    class_1,
-    device,
-)
+from src.config import DATASET_PATH, DATASET_RESIZED_PATH, TARGET_IMAGE_SIZE
 from src.dataset import DatasetCreator
 
 
@@ -51,7 +29,7 @@ class DatasetVisualizer:
         rgb_means = []
         files = os.listdir(class_path)
 
-        for file in tqdm(files, desc=f"Processing {os.path.basename(class_path)}"):
+        for file in tqdm(files, desc=f"Processing color for {class_path}"):
             img_path = os.path.join(class_path, file)
             img = np.array(Image.open(img_path))
             rgb_mean = np.mean(img, axis=(0, 1))
@@ -77,20 +55,26 @@ class DatasetVisualizer:
 
         plt.show()
 
-        # image inspection
+    def get_random_image(
+        self, idx=None, dataset_path=DATASET_PATH, tensor=False
+    ) -> tuple[Image.Image | Tensor, str, int]:
+        if idx is None:
+            idx = random.choice(range(len(self.df)))
+        image = Image.open(
+            f"{dataset_path}/{self.df.iloc[idx]['class']}/{self.df.iloc[idx]['filename']}"
+        )
+        label = self.df.iloc[idx]["class"]
+        if tensor:
+            transform = transforms.Compose([transforms.ToTensor()])
+            image = transform(image)
+        return image, label, idx
 
     def inspect_image_randomly(self):
-        idx = random.choice(range(len(self.df)))
-        image = Image.open(
-            f"{DATASET_PATH}/{self.df.iloc[idx]['class']}/{self.df.iloc[idx]['filename']}"
-        )
+        image, label, idx = self.get_random_image(dataset_path=DATASET_PATH)
         plt.imshow(image)
         plt.title(self.df.iloc[idx]["class"])
         plt.axis("off")
         plt.show()
-        # print metadata
-        print(f"Image size: {image.size}")
-        print(f"Image mode: {image.mode}")
 
     def find_unique_shapes(self):
         # Finding all the unique shapes of the images inside the dataset
@@ -107,11 +91,8 @@ class DatasetVisualizer:
 
     def show_augmented_image(self):
         fold_stats = DatasetCreator().compute_fold_standardization_params()
-        idx = random.choice(range(len(self.df)))
         # read as gray scale
-        image = Image.open(
-            f"{DATASET_RESIZED_PATH}/{self.df.iloc[idx]['class']}/{self.df.iloc[idx]['filename']}"
-        )
+        image, label, idx = self.get_random_image(dataset_path=DATASET_RESIZED_PATH)
         fig, ax = plt.subplots(1, 2, figsize=(10, 5))
         ax[0].imshow(image)
         ax[0].set_title(self.df.iloc[idx]["class"])
@@ -138,3 +119,7 @@ class DatasetVisualizer:
         ax[1].set_title("Transformed image")
         ax[1].axis("off")
         plt.show()
+
+
+if __name__ == "__main__":
+    pass

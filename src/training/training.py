@@ -161,12 +161,11 @@ class CrossValidationTrainer:
     def train_all_folds(self, df):
         with open(FILE_PATH_FOLD_STATS, "r") as f:
             fold_stats = json.load(f)
-        print(fold_stats)
 
         train_splits = pd.read_csv(FILE_PATH_TRAIN_SPLIT)
         val_splits = pd.read_csv(FILE_PATH_VAL_SPLIT)
 
-        for i in range(1, 10):
+        for i in range(10):
             self.train_fold(i, df, train_splits, val_splits, fold_stats)
 
     def train_fold(self, fold_num, df, train_splits, val_splits, fold_stats):
@@ -208,6 +207,6 @@ class CrossValidationTrainer:
             }
         )
         results_df_name = (
-            f"{FOLD_MODEL_RESULTS_PATH}{fold_num}{model_class.__name__}.csv"
+            f"{FOLD_MODEL_RESULTS_PATH}{fold_num}_{model_class.__name__}.csv"
         )
         results_df.to_csv(results_df_name)

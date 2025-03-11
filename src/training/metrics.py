@@ -128,7 +128,7 @@ class TrainingMetrics:
         }
 
         # save to file
-        with open(MODEL_RESULT_METRICS_PATH, "w") as f:
-            json.dump(result, f, indent=4)
+        with open(f"{MODEL_RESULT_METRICS_PATH}{model_class.__name__}.json", "w") as f:
+            json.dump(result, f)
 
         return result

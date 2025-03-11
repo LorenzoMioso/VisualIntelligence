@@ -74,8 +74,8 @@ class DatasetCreator:
             cv2.imwrite(dest_path, result)
 
     def _create_dataset_df(self):
-        allFilesClass0 = os.listdir(f"{DATASET_PATH}/{class_0}")
-        allFilesClass1 = os.listdir(f"{DATASET_PATH}/{class_1}")
+        allFilesClass0 = sorted(os.listdir(f"{DATASET_PATH}/{class_0}"))
+        allFilesClass1 = sorted(os.listdir(f"{DATASET_PATH}/{class_1}"))
         df = pd.DataFrame(columns=["filename", "class"])
         df["filename"] = allFilesClass0 + allFilesClass1
         df["class"] = [class_0] * len(allFilesClass0) + [class_1] * len(allFilesClass1)
@@ -182,6 +182,7 @@ class DatasetCreator:
                 },
                 f,
             )
+        return fold_stats
 
     def get_standardization_params_from_file(self):
         if not os.path.exists(FILE_PATH_FOLD_STATS):

@@ -26,12 +26,10 @@ class ModelAnalyzer:
     def inspect_model_architecture(self):
         """Inspect and print model architecture details"""
         # check len of train and val loaders
-        print(f"Train loader length: {len(self.train_loader)}")
         if self.val_loader:
             print(f"Val loader length: {len(self.val_loader)}")
 
         images, labels = next(iter(self.train_loader))
-        print(f"Labels : {labels}")
 
         image = images[0].unsqueeze(0).to(device)
         label = labels[0].unsqueeze(0).to(device)
