@@ -1,6 +1,11 @@
 import random
+import numpy as np
+from kymatio.scattering2d.filter_bank import filter_bank
+from scipy.fft import fft2
+
 
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 from captum.attr import Occlusion
 
@@ -8,30 +13,41 @@ from src.config import device
 
 
 class XAI:
+    """Explainable AI visualization methods for model interpretability"""
+
     def __init__(self, model):
-        self.model = model
-
-    def normalize_image_for_display(self, image):
         """
-        Normalize image data for display
+        Initialize the XAI module
+        Args:
+            model: PyTorch model to visualize
+        """
+        self.model = model.to(device)
+        self.model.eval()  # Set to evaluation mode by default
 
+    def normalize_image_for_display(self, image_array):
+        """
+        Normalize image data to [0,1] range for display
         Args:
             image_array: The image array to normalize
-
         Returns:
             Normalized image array
         """
-        image = image - image.min()
+        image = image_array - image_array.min()
         if image.max() > 0:
             image = image / image.max()
         return image
 
     def show_conv_filters(self):
-        # inspect filters
+        """Visualize convolutional filters from all conv layers"""
+        # Find all convolutional layers
         conv_layers = []
         for module in self.model.modules():
             if isinstance(module, torch.nn.Conv2d):
                 conv_layers.append(module)
+
+        if not conv_layers:
+            print("No convolutional layers found in the model.")
+            return
 
         # Plot weights for each conv layer
         for idx, conv_layer in enumerate(conv_layers):
@@ -39,8 +55,7 @@ class XAI:
             weights = conv_layer.weight.data.cpu().numpy()
 
             # Calculate grid size
-            n_filters = weights.shape[0]
-            n_channels = weights.shape[1]
+            n_filters, n_channels = weights.shape[0], weights.shape[1]
 
             # Create figure
             fig, axes = plt.subplots(
@@ -51,20 +66,58 @@ class XAI:
             for i in range(n_filters):
                 for j in range(n_channels):
                     if n_channels == 1:
-                        ax = axes[i] if n_filters > 1 else axes  # type: ignore
+                        ax = axes[i] if n_filters > 1 else axes
                     else:
-                        ax = axes[j, i] if n_filters > 1 else axes[j]  # type: ignore
-
+                        ax = axes[j, i] if n_filters > 1 else axes[j]
                     img = weights[i, j]
                     ax.imshow(img, cmap="viridis")
                     ax.axis("off")
 
-            plt.suptitle(f"Conv Layer {idx+1} Weights")
+            plt.suptitle(f"Conv Layer {idx+1} Filters")
             plt.tight_layout()
             plt.show()
 
-    def show_conv_activations(self, val_loader):
+    def show_scattering_filters(self):
+        # Gray-scale filters
+        M = 32
+        J = 3
+        L = 8
+        filters_set = filter_bank(M, M, J, L=L)
 
+        fig, axs = plt.subplots(J, L, sharex=True, sharey=True)
+        fig.set_figheight(6)
+        fig.set_figwidth(6)
+        # plt.rc('text', usetex=True)
+        plt.rc("font", family="serif")
+        i = 0
+        for filter in filters_set["psi"]:
+            f = filter["levels"][0]
+            filter_c = fft2(f)
+            filter_c = np.fft.fftshift(filter_c)
+            axs[i // L, i % L].imshow(
+                np.abs(filter_c), cmap="gray", vmin=0, vmax=1.5 * np.abs(filter_c).max()
+            )
+            axs[i // L, i % L].axis("off")
+            axs[i // L, i % L].set_title("j={}\ntheta={}".format(i // L, i % L))
+            i = i + 1
+
+        fig.suptitle(
+            (
+                r"Wavelets for each scales j and angles theta used."
+                "\nColor saturation and color hue respectively denote complex "
+                "magnitude and complex phase."
+            ),
+            fontsize=13,
+        )
+        plt.tight_layout()
+        plt.show()  # Changed from fig.show() to plt.show()
+
+    def show_conv_activations(self, val_loader):
+        """
+        Visualize activations of convolutional layers using occlusion
+        Args:
+            val_loader: DataLoader with validation data
+        """
         # Get a single image from the validation set
         images, labels = next(iter(val_loader))
         random_idx = random.randint(0, len(images) - 1)
@@ -79,110 +132,69 @@ class XAI:
             image, target=label, sliding_window_shapes=(1, 32, 32)
         )
 
-        # Show the image
-        image = image.squeeze(0).cpu().numpy()
-        image = image - image.min()
-        image /= image.max()
-        image = image.transpose(1, 2, 0)
-        plt.imshow(image)
-        plt.axis("off")
-        plt.show()
+        # Display the image alongside the attribution
+        self._display_attribution(
+            image.detach().cpu().numpy(),
+            attribution.detach().cpu().numpy(),
+            "Original Image",
+            "Occlusion Attribution",
+        )
 
     def backpropagation(self, image):
-        # Set model to training mode to enable gradient computation
-        self.model.eval()
-
-        # Ensure model is on the correct device
-        self.model = self.model.to(device)
-
-        # Make sure image is on the same device as the model and properly formatted
-        image = image.to(device)
-
-        # Check if image already has batch dimension
-        if len(image.shape) == 3:
-            image = image.unsqueeze(0)  # Add batch dimension if needed
-
-        # Create a gradient object
-        image = image.clone().detach().requires_grad_(True)
-        print("Image shape:", image.shape)
-        print("Image device:", image.device)
-        print("Model device:", next(self.model.parameters()).device)
+        """
+        Compute and visualize vanilla backpropagation for model interpretation
+        Args:
+            image: Input image as tensor
+        """
+        # Prepare image
+        image = self._prepare_input_image(image)
 
         # Forward pass
         output = self.model(image)
-        print(f"Output : {output}")
 
         # Get the predicted class
         predicted_class = torch.argmax(torch.softmax(output, dim=1), dim=1)
         print(f"Predicted class: {predicted_class.item()}")
 
-        # Use the predicted class directly
-        print("Output for predicted class:", output[0, predicted_class])
+        # Use the predicted class for backpropagation
         output_for_class = output[0, predicted_class]
-        print(f"Output for predicted class _ {output_for_class}")
 
-        # Backward pass (we want to compute gradient with respect to input)
+        # Reset gradients
+        self.model.zero_grad()
+
+        # Backward pass
         output_for_class.backward()
 
-        # show gradients
+        # Check for gradients
         if image.grad is None:
             print(
                 "No gradients were computed. The model might not support backpropagation."
             )
             return
 
+        # Get and normalize gradients
         gradient = image.grad.detach().cpu().numpy()
-        gradient = self.normalize_image_for_display(gradient)
+        input_image = image.detach().cpu().numpy()
 
-        # Plot the input image and gradients in a single chart
-        fig, axes = plt.subplots(1, 2, figsize=(12, 6))
-
-        # Plot the input image
-        input_image = image.detach().cpu().numpy().squeeze(0)
-        input_image = self.normalize_image_for_display(input_image)
-        input_image = input_image.squeeze(0)
-
-        print(f"Input image shape for plotting: {input_image.shape}")
-        axes[0].imshow(input_image, cmap="gray")
-        axes[0].axis("off")
-        axes[0].set_title("Input Image")
-        print(f"Gradient shape: {gradient.shape}")
-
-        # Plot each gradient channel
-        grad_vis = gradient.squeeze(0)
-        grad_vis = grad_vis.squeeze(0)
-
-        print(f"Gradient shape for plotting: {grad_vis.shape}")
-        axes[1].imshow(grad_vis, cmap="hot")
-        axes[1].axis("off")
-        axes[1].set_title("Gradient")
-
-        plt.tight_layout()
-        plt.show()
+        # Display the results
+        self._display_attribution(
+            input_image, gradient, "Input Image", "Gradient Attribution"
+        )
 
     def guided_backpropagation(self, image):
-        # Set the model to evaluation mode
+        """
+        Compute and visualize guided backpropagation for model interpretation
+        Args:
+            image: Input image as tensor
+        """
+        # Set model to evaluation mode
         self.model.eval()
 
         # Replace ReLU with GuidedBackpropReLU
         replace_relu_with_guided(self.model)
 
-        # Ensure model is on correct device
-        self.model = self.model.to(device)
-
-        # Make sure image is on the same device as the model and properly formatted
-        image = image.to(device)
-
-        # Check if image already has batch dimension
-        if len(image.shape) == 3:
-            image = image.unsqueeze(0)  # Add batch dimension if needed
-
-        print("Image shape for guided backprop:", image.shape)
-        print("Image device:", image.device)
-        print("Model device:", next(self.model.parameters()).device)
-
-        # Clone and ensure input requires gradients
-        image = image.clone().detach().requires_grad_(True)
+        # Prepare image
+        image = self._prepare_input_image(image)
 
         # Forward pass
         output = self.model(image)
@@ -194,58 +206,99 @@ class XAI:
             )
             return
 
-        # Zero all existing gradients
+        # Reset gradients
         self.model.zero_grad()
 
         # Get the predicted class
         predicted_class = torch.argmax(torch.softmax(output, dim=1), dim=1)
         print(f"Predicted class: {predicted_class.item()}")
 
-        # Use the predicted class directly
+        # Use the predicted class for backpropagation
         output_for_class = output[0, predicted_class]
 
         # Backward pass
         output_for_class.backward()
 
-        # Check if gradients were computed
+        # Check for gradients
         if image.grad is None:
             print("No gradients were computed. Using alternative visualization method.")
             return
 
-        # Get the gradients
+        # Get and normalize gradients
         gradient = image.grad.detach().cpu().numpy()
+        input_image = image.detach().cpu().numpy()
 
-        # Normalize the gradients
-        gradient = self.normalize_image_for_display(gradient)
+        # Display the results
+        self._display_attribution(
+            input_image, gradient, "Original Image", "Guided Backpropagation"
+        )
 
-        # Plot the original image and gradients
-        fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+    def _prepare_input_image(self, image):
+        """
+        Prepare an image for gradient computation
+        Args:
+            image: Input image tensor
+        Returns:
+            Prepared image tensor with gradients enabled
+        """
+        # Move to device
+        image = image.to(device)
 
-        # Plot the original image
-        original_image = image.detach().cpu().numpy().squeeze(0)
-        original_image = self.normalize_image_for_display(original_image)
+        # Add batch dimension if needed
+        if len(image.shape) == 3:
+            image = image.unsqueeze(0)
 
-        original_image = original_image.squeeze(0)
+        # Enable gradients
+        image = image.clone().detach().requires_grad_(True)
 
-        print(f"Original image shape for plotting: {original_image.shape}")
-        axes[0].imshow(original_image, cmap="gray")
+        return image
+
+    def _display_attribution(
+        self, input_image, attribution, input_title="Input", attr_title="Attribution"
+    ):
+        """
+        Display an input image and its attribution side by side
+        Args:
+            input_image: Input image array
+            attribution: Attribution/gradient array
+            input_title: Title for the input image
+            attr_title: Title for the attribution image
+        """
+        # Normalize images for display
+        input_image = self.normalize_image_for_display(input_image)
+        attribution = self.normalize_image_for_display(attribution)
+
+        # Remove unnecessary dimensions
+        if input_image.shape[0] == 1:
+            input_image = input_image.squeeze(0)
+        if len(input_image.shape) > 2 and input_image.shape[0] == 1:
+            input_image = input_image.squeeze(0)
+
+        if attribution.shape[0] == 1:
+            attribution = attribution.squeeze(0)
+        if len(attribution.shape) > 2 and attribution.shape[0] == 1:
+            attribution = attribution.squeeze(0)
+
+        # Create the plot
+        fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+
+        # Plot the input image
+        axes[0].imshow(input_image, cmap="gray")
         axes[0].axis("off")
-        axes[0].set_title("Original Image")
+        axes[0].set_title(input_title)
 
-        # Plot the gradients
-        grad_vis = gradient.squeeze(0)
-        grad_vis = grad_vis.squeeze(0)
-
-        print(f"Gradient shape for plotting: {grad_vis.shape}")
-        axes[1].imshow(grad_vis, cmap="hot")
+        # Plot the attribution
+        axes[1].imshow(attribution, cmap="hot")
         axes[1].axis("off")
-        axes[1].set_title("Guided Backpropagation")
+        axes[1].set_title(attr_title)
 
         plt.tight_layout()
         plt.show()
 
 
 class GuidedBackpropReLU(torch.autograd.Function):
+    """Custom autograd function for guided backpropagation"""
+
     @staticmethod
     def forward(ctx, input):
         positive_mask = (input > 0).type_as(input)
@@ -265,11 +318,18 @@ class GuidedBackpropReLU(torch.autograd.Function):
 
 
 class GuidedBackpropReLUModel(torch.nn.Module):
+    """Wrapper module for the GuidedBackpropReLU autograd function"""
+
     def forward(self, input):
         return GuidedBackpropReLU.apply(input)
 
 
 def replace_relu_with_guided(model):
+    """
+    Recursively replace all ReLU modules with GuidedBackpropReLUModel modules
+    Args:
+        model: PyTorch model to modify
+    """
     for name, module in model.named_children():
         if isinstance(module, torch.nn.ReLU):
             setattr(model, name, GuidedBackpropReLUModel())

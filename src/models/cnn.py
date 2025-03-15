@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 
-from src.models.scatnet import FeatureClassifier
+
+from src.models.classifier import FeatureClassifier
 
 
 class ConvBlock(nn.Module):

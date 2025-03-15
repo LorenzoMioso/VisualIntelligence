@@ -1,5 +1,5 @@
 ---
-title: "Visual Intelligence: Classificazione Istologica"
+title: "Visual Intelligence: Lung Cancer Histopathological Classification"
 author: Your Name
 date: March 2025
 theme: gaia
@@ -80,131 +80,166 @@ style: |
 
 # Visual Intelligence Project
 
-## Classificazione Automatica di Immagini Istologiche
+## Lung Cancer Histopathological Classification
 
 #### Your Name | March 2025
 
 ---
 
-<!-- header: '📊 Visual Intelligence - ML Project' -->
+## 🔍 Introduction & Problem Statement
 
-## 🔍 Introduzione
-
-- **Obiettivo**: Classificazione automatica di campioni istologici polmonari
-- **Sfida**: Distinguere tra diversi tipi cellulari (pneumociti I/II, macrofagi alveolari)
-- **Motivazione**: Assistere i patologi nell'analisi rapida di campioni istologici
-
-> _"L'intelligenza artificiale può migliorare la precisione diagnostica e ridurre il carico di lavoro nell'analisi istologica"_
-
----
-
-## 📦 Dataset
-
-- **Origine**: Campioni istologici polmonari con colorazione ematossilina-eosina
-- **Composizione**: 3 classi principali (pneumociti tipo I, tipo II, macrofagi alveolari)
-- **Dimensioni**: 1000 immagini ad alta risoluzione (768×768 px)
-
-**Preprocessing applicato**:
-
-- Normalizzazione del contrasto
-- Augmentation (rotazioni, flipping, variazioni di luminosità)
-- Ridimensionamento ottimizzato (analizzato da 768×768 a 5×5 px)
+- **Dataset**: Lung cancer histopathological image collection with 3 classes:
+  - Adenocarcinoma
+  - Squamous cell carcinoma
+  - Benign tissue
+- **Classification Task**: Binary classification (adenocarcinoma vs benign)
+- **Challenge**: Distinguishing subtle tissue patterns and cellular structures
+- **Project Goals**:
+  - Compare traditional CNN vs ScatNet approaches
+  - Investigate color vs structural features
+  - Achieve high accuracy with interpretable results
+  - Apply explainable AI techniques to validate model decisions
 
 ---
 
-## 🧠 Architettura del Modello
+## 📦 Data Preprocessing & Setup
+
+- **Dataset Organization**:
+  - K-fold cross-validation with 10 folds for robust evaluation
+  - Balanced class distribution
+  - Target image size standardization
+- **Preprocessing Pipeline**:
+  - Image normalization and standardization using computed statistics
+  - Data augmentation: rotations, flips, and minor distortions
+  - Color vs grayscale analysis to understand feature importance
+
+> **Key Discovery**: Models heavily rely on color features for classification, which influenced our approach to feature extraction
+
+---
+
+## 🧠 Model Architectures
+
+### CNN Model
+
+- Efficient convolutional neural network with:
+  - Two primary convolutional blocks with batch normalization
+  - Input channels: 1 (grayscale) or 3 (RGB)
+  - Simple classifier head with 16-dimensional feature space
+  - Fast training and excellent feature learning capability
+
+### ScatNet Model
+
+- Wavelet-based feature extraction using Scattering2D:
+  - J=3 scale parameter for wavelet decomposition
+  - More complex classifier (217 → 64 → 2 neurons)
+  - Translation, rotation, and scaling invariant representations
 
 ```mermaid
 graph TD
-    A[Input Image] --> B[Conv Layer 1]
-    B --> C[MaxPool]
-    C --> D[Conv Layer 2]
-    D --> E[MaxPool]
-    E --> F[Fully Connected]
-    F --> G[Output Classification]
+    A[Input Image] --> B[Feature Extraction]
+    B --> C[Global Pooling]
+    C --> D[Classifier Layer]
+    D --> E[Binary Output]
 ```
 
-- **Base Model**: Architettura ispirata a ResNet ma ottimizzata per dimensione
-- **Alternative testate**: CNN tradizionale vs. modello leggero personalizzato
-- **Efficienza**: Implementazione di mixed precision training per accelerare
+---
+
+## 💻 Training & Evaluation
+
+| Metric                | CNN    | ScatNet |
+| --------------------- | ------ | ------- |
+| Mean Accuracy         | 98.9%  | 87.9%   |
+| Mean F1 Score         | 98.9%  | 86.7%   |
+| Best Fold Accuracy    | 99.8%  | 92.6%   |
+| Training Speed        | Faster | Slower  |
+| Classifier Complexity | Simple | Complex |
+
+**Key Findings**:
+
+- CNN significantly outperforms ScatNet in both accuracy and speed
+- K-fold validation confirms robust performance across data splits
+- CNN achieves convergence in fewer epochs
+- Performance gap indicates CNN's superior ability to learn relevant features
 
 ---
 
-## 💻 Dettagli Implementativi
+## 🔬 Filter Analysis
 
-- **Framework**: PyTorch con fastai per l'addestramento rapido
-- **Hardware**: NVIDIA GeForce RTX 3090 (riduzione tempi da 4h a 45min)
-- **Strategie di ottimizzazione**:
-  - Data loading efficiente con `num_workers` ottimizzato
-  - Batch size calibrata (32-64 immagini)
-  - Learning rate finder per determinare LR ottimale
+- **CNN Filters**:
 
----
+  - Learned color-sensitive patterns automatically
+  - Hierarchical feature extraction with progressive abstraction
+  - First layer captures basic edges and textures
+  - Deeper layers identify tissue-specific patterns
 
-## 📈 Risultati & Analisi
+- **ScatNet Filters**:
+  - Pre-defined wavelet transforms (not learned)
+  - Scale and rotation invariant features
+  - Lower discriminative power despite theoretical advantages
 
-| Modello         | Accuracy | F1-Score | Tempo Training |
-| --------------- | -------- | -------- | -------------- |
-| CNN base        | 87.5%    | 0.86     | 4h             |
-| CNN ottimizzata | 91.2%    | 0.90     | 45min          |
-| Grayscale       | 83.3%    | 0.82     | 30min          |
-| Mini (5×5)      | 89.7%    | 0.88     | 10min          |
-
-**Osservazione chiave**: Il modello funziona sorprendentemente bene anche con immagini molto ridotte (5×5 px)
+> **Important**: Color information proved crucial for classification success
 
 ---
 
-## 🧪 Esperimenti & Scoperte
+## 🎯 Explainable AI Results
 
-- **Riduzione dimensionale**: Anche a 5×5 pixel il modello mantiene performance elevate
-- **Ipotesi**: Il modello potrebbe basarsi principalmente su pattern di colore
-- **Verifica**:
-  - Test con immagini in grayscale → risultati inferiori
-  - Test con rimozione sfondo → ancora buoni risultati
-  - **Conclusione**: Il modello impara pattern di colore associati alle classi
+- **Attribution Methods Implementation**:
 
----
+  - Custom XAI methods: Vanilla Backpropagation, Guided Backpropagation, Occlusion
+  - Captum library integration with multiple attribution techniques
+  - Heatmap visualization highlighting decision regions
 
-## 🚧 Sfide & Miglioramenti
-
-- **Sfide affrontate**:
-
-  - Sovradimensionamento iniziale del modello
-  - Tempi di training eccessivi
-  - Rischio di apprendimento di features non generalizzabili
-
-- **Miglioramenti futuri**:
-  - Implementare tecniche di interpretabilità (Grad-CAM, LIME)
-  - Sviluppare architetture attention-based per migliore focalizzazione
-  - Validazione con dataset esterni per verificare generalizzazione
+- **Key Insights**:
+  - Attribution maps confirm focus on cellular structures
+  - Color patterns strongly influence classification decisions
+  - CNN's learned features align better with pathological indicators
+  - ScatNet's wavelets capture texture but miss important color information
 
 ---
 
-## 🎓 Concetti ML Applicati
+## 📈 Learning Curves Analysis
 
-- **Bias-variance trade-off**: Bilanciamento complessità del modello
-- **Data augmentation**: Tecniche per arricchire il dataset
-- **Transfer learning vs. training from scratch**: Analisi comparativa
-- **Problemi di overfitting**: Strategie implementate (dropout, regolarizzazione)
+- **CNN Training Progression**:
+
+  - Rapid convergence within 10-15 epochs
+  - Consistent performance across folds
+  - Limited overfitting due to effective regularization
+  - Final validation accuracy stabilized around 99%
+
+- **ScatNet Training Progression**:
+  - Slower convergence requiring more epochs
+  - Higher variance between folds (81.1% - 92.6%)
+  - More complex classifier needed to compensate for fixed feature extraction
+  - Validation accuracy plateaued around 88%
+
+---
+
+## 📊 Conclusions
+
+- **Performance Achievements**:
+
+  - CNN reached 98.9% mean accuracy with simpler architecture
+  - ScatNet achieved 87.9% mean accuracy despite theoretical advantages
+  - 11% performance gap between approaches
+
+- **Key Insights**:
+
+  - Color features are crucial for lung cancer histopathology classification
+  - Learned features (CNN) outperform fixed mathematical representations (ScatNet)
+  - Simpler architectures can outperform sophisticated ones when aligned with data characteristics
+
+- **Future Work**:
+  - Investigate grayscale performance optimization strategies
+  - Expand to multi-class classification (including squamous cell carcinoma)
+  - Enhance interpretability methods for clinical validation
 
 ---
 
 <!-- _class: lead -->
 
-## 📝 Conclusioni
+# Thank You!
 
-- Il modello leggero ottimizzato raggiunge **91.2% di accuracy**
-- La scoperta dell'apprendimento basato sul colore evidenzia l'importanza dell'**interpretabilità**
-- L'applicazione pratica potrebbe assistere i patologi nella **classificazione rapida** di campioni
+## Questions?
 
----
-
-<!-- _class: lead -->
-
-# Grazie per l'attenzione!
-
-## Domande?
-
-Contatti:
 📧 your.email@university.edu
 🔗 github.com/yourusername

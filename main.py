@@ -1,16 +1,8 @@
 import random
-
 import pandas as pd
 from torchvision import transforms
-
-from src.config import (
-    DATASET_RESIZED_PATH,
-    FOLD_MODEL_RESULTS_PATH,
-    MODEL_CHECKPOINT_PATH,
-    TARGET_IMAGE_SIZE,
-    device,
-)
-from src.dataset import DataloaderFactory, DatasetCreator
+from src.config import MODEL_CONFIG, PATH_CONFIG, device
+from src.dataset import DataManager
 from src.models.cnn import CNNImageClassifier
 from src.models.scatnet import ScatNetImageClassifier
 from src.models.utils import ModelAnalyzer
@@ -21,145 +13,182 @@ from src.visualization.xai import XAI
 from src.visualization.xai_captum import XAI_CAPTUM
 
 
-def main(model_class):
-    # process dataset
-    dataset = DatasetCreator()
-    df = dataset.init(TARGET_IMAGE_SIZE)
-    train_splits, val_splits = dataset.create_splits()
-    stats = dataset.get_standardization_params_from_file()
-    if not stats:
-        dataset.compute_fold_standardization_params()
-    stats = dataset.get_standardization_params_from_file()
+class Runner:
+    """Main class to handle all experiment workflows"""
 
-    # first fold dataloader
-    train_idx = train_splits["train_0"].values
-    val_idx = val_splits["val_0"].values
-    mean = stats["0"]["mean"]  # type: ignore
-    std = stats["0"]["std"]  # type: ignore
+    def __init__(self, model_class):
+        """Initialize experiment with a model class"""
+        self.model_class = model_class
+        self.data_manager = None
+        self.df = None
+        self.train_splits = None
+        self.val_splits = None
+        self.stats = None
 
-    train_loader, val_loader = DataloaderFactory(df).create_dataloaders(
-        train_idx, val_idx, mean, std, batch_size=64, image_size=TARGET_IMAGE_SIZE
-    )
+    def prepare_dataset(self):
+        """Prepare dataset and return necessary components"""
+        self.data_manager = DataManager()
+        self.df = self.data_manager.prepare_dataset(MODEL_CONFIG.target_image_size)
+        self.train_splits, self.val_splits = self.data_manager.create_splits()
+        self.stats = self.data_manager.get_stats_from_file()
+        if not self.stats:
+            self.data_manager.compute_statistics()
+            self.stats = self.data_manager.get_stats_from_file()
+        return self
 
-    model = model_class()
-    # model = ScatNetImageClassifier()
-    model = model.to(device)
-    model_analyzer = ModelAnalyzer(model, train_loader, val_loader)
-    model_analyzer.inspect_model_architecture()
-    # model_analyzer.profile_model()
+    def get_model(self, checkpoint_id=None):
+        """Load or create a model"""
+        model_analyzer = ModelAnalyzer()
 
-    # train model
-    cv_trainer = CrossValidationTrainer(model)
-    # cv_trainer.train_fold(0, df, train_splits, val_splits, stats)
-    cv_trainer.train_all_folds(df)
+        if checkpoint_id is not None:
+            # Load from checkpoint
+            checkpoint_path = f"{PATH_CONFIG.model_checkpoint_path}{checkpoint_id}_{self.model_class.__name__}.pth"
+            model = model_analyzer.load_checkpoint(checkpoint_path)
+        else:
+            # Create new model instance
+            model = self.model_class().to(device)
 
-    results_df_name = f"{FOLD_MODEL_RESULTS_PATH}{0}_{model.__class__.__name__}.csv"
+        return model
 
-    results_from_csv = pd.read_csv(results_df_name)
+    def get_loaders(self, fold_id=0, batch_size=None):
+        """Create dataloaders for a specific fold"""
+        self.prepare_dataset()
 
-    tm = TrainingMetrics()
-    # tm.show_training_results(results_from_csv)
+        train_idx = self.train_splits[f"train_{fold_id}"].values
+        val_idx = self.val_splits[f"val_{fold_id}"].values
+        mean = self.stats[str(fold_id)]["mean"]
+        std = self.stats[str(fold_id)]["std"]
 
-    res = tm.compute_metrics_all_folds(
-        model_analyzer, DataloaderFactory(df), model.__class__
-    )
-    print(res)
+        batch_size = batch_size or MODEL_CONFIG.batch_size
+        return self.data_manager.create_dataloaders(
+            train_idx, val_idx, mean, std, batch_size
+        )
 
-    # test model
-    # xai
-    pass
+    def train_model(self):
+        """Train model from scratch using all folds"""
+        print(f"Training {self.model_class.__name__} model...")
+        self.prepare_dataset()
+        print(f"Dataset prepared with {len(self.df)} samples")
+
+        # Create model
+        print(f"Creating model instance of {self.model_class.__name__}")
+        model = self.get_model()
+        print(f"Model created: {model}")
+
+        # Get loaders for first fold (for inspection)
+        print("Creating dataloaders for first fold")
+        train_loader, val_loader = self.get_loaders()
+        print(f"Train loader length: {len(train_loader)}")
+
+        # Analyze model architecture
+        model_analyzer = ModelAnalyzer(model, train_loader, val_loader)
+        model_analyzer.inspect_model_architecture()
+
+        # Train using cross-validation
+        cv_trainer = CrossValidationTrainer(model)
+        cv_trainer.train_all_folds(self.df, num_folds=1)
+
+        return model
+
+    def compute_metrics(self, checkpoint_id=0, fold_id=0):
+        """Compute and display metrics for an existing model"""
+        self.prepare_dataset()
+
+        # Load model from checkpoint
+        model = self.get_model(checkpoint_id=checkpoint_id)
+
+        # Create dataloaders for specified fold
+        train_loader, val_loader = self.get_loaders(fold_id)
+
+        # Setup analyzer and compute metrics
+        model_analyzer = ModelAnalyzer(model, train_loader, val_loader)
+        tm = TrainingMetrics()
+        metrics = tm.compute_metrics_all_folds(
+            model_analyzer, self.data_manager, model.__class__
+        )
+        return metrics
+
+    def run_xai_analysis(self, checkpoint_id=0, idx=4981):
+        """Run XAI methods on a sample image"""
+        self.prepare_dataset()
+
+        # Load model
+        model = self.get_model(checkpoint_id=checkpoint_id)
+
+        # Initialize XAI
+        xai = XAI(model)
+
+        # Get test image
+        image, label, _ = DatasetVisualizer(self.df).get_random_image(
+            tensor=True, dataset_path=PATH_CONFIG.dataset_resized_path, idx=idx
+        )
+
+        # Normalize image
+        fold_id = 0  # Using first fold's statistics
+        mean = self.stats[str(fold_id)]["mean"]
+        std = self.stats[str(fold_id)]["std"]
+        val_transform = transforms.Compose([transforms.Normalize(mean=mean, std=std)])
+        image = val_transform(image)
+
+        # Run XAI methods
+        xai.backpropagation(image)
+        xai.guided_backpropagation(image)
+
+        return image, label
+
+    def show_filters(self, checkpoint_id=0):
+        model = self.get_model(checkpoint_id=checkpoint_id)
+        xai = XAI(model)
+        if self.model_class == ScatNetImageClassifier:
+            xai.show_scattering_filters()
+        else:
+            xai.show_conv_filters()
+
+    def run_captum_analysis(self, checkpoint_id=0, idx=0):
+        """Run model attributions using Captum"""
+        self.prepare_dataset()
+
+        # Load model
+        model = self.get_model(checkpoint_id=checkpoint_id)
+
+        # Get test image
+        image, label, _ = DatasetVisualizer(self.df).get_random_image(
+            tensor=True, dataset_path=PATH_CONFIG.dataset_resized_path, idx=idx
+        )
+
+        # Visualize attributions
+        attributions = XAI_CAPTUM(model).visualize_model_attributions(
+            image, methods=["Guided Backpropagation"]
+        )
+
+        return image, label, attributions
 
 
-def compute_results(model_class):
-    dataset = DatasetCreator()
-    df = dataset.init(TARGET_IMAGE_SIZE)
-    model = ModelAnalyzer(None, None).load_checkpoint(
-        f"{MODEL_CHECKPOINT_PATH}1_{model_class.__name__}.pth"
-    )
-    # Assicurarsi che il modello sia sulla GPU
-    model = model.to(device)
-    train_splits, val_splits = dataset.create_splits()
-    stats = dataset.get_standardization_params_from_file()
-    if not stats:
-        dataset.compute_fold_standardization_params()
-    stats = dataset.get_standardization_params_from_file()
-    train_idx = train_splits["train_0"].values
-    val_idx = val_splits["val_0"].values
-    mean = stats["0"]["mean"]  # type: ignore
-    std = stats["0"]["std"]  # type: ignore
+def main():
+    """Main function to execute experiments"""
+    # Choose which model to use
+    # model_class = ScatNetImageClassifier
+    model_class = CNNImageClassifier
 
-    train_loader, val_loader = DataloaderFactory(df).create_dataloaders(
-        train_idx, val_idx, mean, std, batch_size=32, image_size=TARGET_IMAGE_SIZE
-    )
-    model_analyzer = ModelAnalyzer(model, train_loader, val_loader)
+    # Create experiment runner
+    runner = Runner(model_class)
 
-    tm = TrainingMetrics()
-    res = tm.compute_metrics_all_folds(
-        model_analyzer, DataloaderFactory(df), model.__class__
-    )
-    print(res)
+    # Choose which experiment to run
+    runner.train_model()
 
+    # Show filters
+    runner.show_filters()
 
-def test_xai(model_class):
-    dataset = DatasetCreator()
-    df = dataset.init(TARGET_IMAGE_SIZE)
-    model = ModelAnalyzer(None, None).load_checkpoint(
-        f"{MODEL_CHECKPOINT_PATH}1_{model_class.__name__}.pth"
-    )
-    # Assicurarsi che il modello sia sulla GPU
-    model = model.to(device)
+    # Other options:
+    # Metrics = runner.compute_metrics()
+    # Print(metrics)
 
-    xai = XAI(model)
-    # xai.show_conv_filters()
-    # xai.show_conv_activations(val_loader)
+    # image, label = runner.run_xai_analysis()
+    # print(f"Analyzed image with label: {label}")
 
-    # Ottieni l'immagine
-    image, label, idx = DatasetVisualizer(df).get_random_image(
-        tensor=True, dataset_path=DATASET_RESIZED_PATH, idx=4981
-    )
-    # apply transformations
-    stats = dataset.get_standardization_params_from_file()
-    mean = stats["0"]["mean"]  # type: ignore
-    std = stats["0"]["std"]  # type: ignore
-    val_transform = transforms.Compose(
-        [
-            transforms.Normalize(mean=mean, std=std),
-        ]
-    )
-    image = val_transform(image)
-
-    xai.backpropagation(image)
-    xai.guided_backpropagation(image)
-
-
-def test_model_attributions(model_class):
-    """Test le diverse funzioni di visualizzazione delle attributions del modello"""
-
-    # Carica il modello
-    # (usa lo stesso codice che già usi per caricare il modello)
-    df = DatasetCreator().init(TARGET_IMAGE_SIZE)
-    print("df", df.head())
-    model = ModelAnalyzer(None, None).load_checkpoint(
-        f"{MODEL_CHECKPOINT_PATH}1_{model_class.__name__}.pth"
-    )
-
-    # Carica un'immagine di test
-
-    image, label, idx = DatasetVisualizer(df).get_random_image(
-        tensor=True, dataset_path=DATASET_RESIZED_PATH, idx=0
-    )
-    print("image shape dopo device", image.shape)  # type: ignore
-    print("image label", label)
-
-    # Visualizza le attributions utilizzando la funzione robusta
-    attributions = XAI_CAPTUM(model).visualize_model_attributions(image)
+    # image, label, _ = runner.run_captum_analysis()
+    # print(f"Generated Captum attributions for image with label: {label}")
 
 
 if __name__ == "__main__":
-
-    model_class = CNNImageClassifier
-    # model_class = ScatNetImageClassifier
-    # main(model_class)
-    # compute_results(model_class)
-    test_xai(model_class)
-    # test_model_attributions(model_class)
+    main()

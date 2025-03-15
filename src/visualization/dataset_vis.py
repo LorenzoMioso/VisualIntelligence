@@ -9,8 +9,8 @@ from torch import Tensor
 from torchvision import transforms
 from tqdm.auto import tqdm
 
-from src.config import DATASET_PATH, DATASET_RESIZED_PATH, TARGET_IMAGE_SIZE
-from src.dataset import DatasetCreator
+from src.dataset import DataManager
+from src.config import PATH_CONFIG
 
 
 class DatasetVisualizer:
@@ -56,7 +56,7 @@ class DatasetVisualizer:
         plt.show()
 
     def get_random_image(
-        self, idx=None, dataset_path=DATASET_PATH, tensor=False
+        self, idx=None, dataset_path=PATH_CONFIG.dataset_path, tensor=False
     ) -> tuple[Image.Image | Tensor, str, int]:
         if idx is None:
             idx = random.choice(range(len(self.df)))
@@ -70,7 +70,7 @@ class DatasetVisualizer:
         return image, label, idx
 
     def inspect_image_randomly(self):
-        image, label, idx = self.get_random_image(dataset_path=DATASET_PATH)
+        image, label, idx = self.get_random_image(dataset_path=PATH_CONFIG.dataset_path)
         plt.imshow(image)
         plt.title(self.df.iloc[idx]["class"])
         plt.axis("off")
@@ -81,7 +81,7 @@ class DatasetVisualizer:
         shapes = []
         for idx in tqdm(range(len(self.df))):
             image = Image.open(
-                f"{DATASET_PATH}/{self.df.iloc[idx]['class']}/{self.df.iloc[idx]['filename']}"
+                f"{PATH_CONFIG.dataset_path}/{self.df.iloc[idx]['class']}/{self.df.iloc[idx]['filename']}"
             )
             shapes.append(image.size)
 
@@ -90,9 +90,12 @@ class DatasetVisualizer:
         print(f"Unique shapes: {unique_shapes}")  # 768x768
 
     def show_augmented_image(self):
-        fold_stats = DatasetCreator().compute_fold_standardization_params()
+        fold_stats = DataManager().get_stats_from_file()
+
         # read as gray scale
-        image, label, idx = self.get_random_image(dataset_path=DATASET_RESIZED_PATH)
+        image, label, idx = self.get_random_image(
+            dataset_path=PATH_CONFIG.dataset_resized_path
+        )
         fig, ax = plt.subplots(1, 2, figsize=(10, 5))
         ax[0].imshow(image)
         ax[0].set_title(self.df.iloc[idx]["class"])

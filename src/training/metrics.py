@@ -6,21 +6,18 @@ import pandas as pd
 import torch
 
 from src.config import (
-    FILE_PATH_FOLD_STATS,
-    FILE_PATH_TRAIN_SPLIT,
-    FILE_PATH_VAL_SPLIT,
-    MODEL_CHECKPOINT_PATH,
-    MODEL_RESULT_METRICS_PATH,
+    MODEL_CONFIG,
+    PATH_CONFIG,
     device,
 )
 
 
 class TrainingMetrics:
     def __init__(self):
-        with open(FILE_PATH_FOLD_STATS, "r") as f:
+        with open(PATH_CONFIG.fold_stats_path, "r") as f:
             self.fold_stats = json.load(f)
-        self.train_splits = pd.read_csv(FILE_PATH_TRAIN_SPLIT)
-        self.val_splits = pd.read_csv(FILE_PATH_VAL_SPLIT)
+        self.train_splits = pd.read_csv(PATH_CONFIG.train_split_path)
+        self.val_splits = pd.read_csv(PATH_CONFIG.val_split_path)
 
     def show_training_results(self, results_from_csv):
         plt.figure(figsize=(15, 7))
@@ -98,7 +95,7 @@ class TrainingMetrics:
 
         for i in range(10):
             model = model_loader.load_checkpoint(
-                f"{MODEL_CHECKPOINT_PATH}{i}_{model_class.__name__}.pth"
+                f"{PATH_CONFIG.model_checkpoint_path}{i}_{model_class.__name__}.pth"
             )
             train_idx = self.train_splits[f"train_{i}"].values
             val_idx = self.val_splits[f"val_{i}"].values
@@ -128,7 +125,9 @@ class TrainingMetrics:
         }
 
         # save to file
-        with open(f"{MODEL_RESULT_METRICS_PATH}{model_class.__name__}.json", "w") as f:
+        with open(
+            f"{PATH_CONFIG.model_result_metrics_path}{model_class.__name__}.json", "w"
+        ) as f:
             json.dump(result, f)
 
         return result

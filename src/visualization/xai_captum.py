@@ -26,6 +26,16 @@ class XAI_CAPTUM:
         self.model = model
         self.model.eval()
 
+        # Define available attribution methods
+        self.available_methods = [
+            "Saliency",
+            "Occlusion",
+            "Integrated Gradients",
+            "DeepLift",
+            "Guided Backpropagation",
+            "Noise Tunnel",
+        ]
+
     def normalize_image_for_display(self, image):
         """
         Normalize image data for display
@@ -41,12 +51,55 @@ class XAI_CAPTUM:
             image = image / image.max()
         return image
 
-    def visualize_model_attributions(self, image, target=None):
+    def get_attribution_method(self, method_name):
         """
-        Visualize different attribution methods for the model and input
+        Get an attribution method instance by name
 
         Args:
-            input_tensor: Input tensor with shape [1, C, H, W]
+            method_name: Name of the attribution method
+
+        Returns:
+            Attribution method instance or None if not available
+        """
+        try:
+            if method_name == "Saliency":
+                return Saliency(self.model)
+            elif method_name == "Occlusion":
+                return Occlusion(self.model)
+            elif method_name == "Integrated Gradients":
+                return IntegratedGradients(self.model)
+            elif method_name == "DeepLift":
+                return DeepLift(self.model)
+            elif method_name == "Guided Backpropagation":
+                return GuidedBackprop(self.model)
+            elif method_name == "Noise Tunnel":
+                # Noise Tunnel needs Integrated Gradients as base
+                integrated_grads = IntegratedGradients(self.model)
+                return NoiseTunnel(integrated_grads)
+            else:
+                print(f"Unknown attribution method: {method_name}")
+                return None
+        except Exception as e:
+            print(f"{method_name} attribution method not available: {e}")
+            return None
+
+    def list_available_methods(self):
+        """
+        Get a list of all available attribution methods
+
+        Returns:
+            List of available method names
+        """
+        return self.available_methods
+
+    def visualize_model_attributions(self, image, methods=None, target=None):
+        """
+        Visualize selected attribution methods for the model and input
+
+        Args:
+            image: Input tensor with shape [C, H, W] or [1, C, H, W]
+            methods: List of attribution method names to use (if None, use all available methods)
+                     Can be a string for a single method or a list of strings for multiple methods
             target: Target class (optional, will use predicted class if None)
 
         Returns:
@@ -55,6 +108,7 @@ class XAI_CAPTUM:
         # Clone input tensor and ensure it requires gradients
         image = image.to(device)
         image = image.clone().detach().requires_grad_(True)
+
         # Check if image already has batch dimension
         if len(image.shape) == 3:
             image = image.unsqueeze(0)  # Add batch dimension if needed
@@ -69,60 +123,34 @@ class XAI_CAPTUM:
             target = output.argmax(dim=1).item()
             print(f"Using predicted class: {target}")
 
-        # Available attribution methods to try
+        # Handle methods input: None, string, or list
+        if methods is None:
+            # Use all available methods if none specified
+            methods = self.available_methods
+        elif isinstance(methods, str):
+            # Convert single method name to a list
+            methods = [methods]
+
+        print(f"Analyzing with methods: {methods}")
+
+        # Initialize attribution methods list
         attribution_methods = []
 
-        # Try Saliency
-        print("Calculating Saliency...")
-        try:
-            saliency = Saliency(self.model)
-            attribution_methods.append(("Saliency", saliency))
-        except Exception as e:
-            print(f"Saliency not available: {e}")
+        # Get the requested attribution methods
+        for method_name in methods:
+            if method_name in self.available_methods:
+                print(f"Preparing {method_name}...")
+                method = self.get_attribution_method(method_name)
+                if method:
+                    attribution_methods.append((method_name, method))
+            else:
+                print(
+                    f"Method '{method_name}' is not supported. Available methods: {self.available_methods}"
+                )
 
-        # Try Occlusion
-        print("Calculating Occlusion...")
-        try:
-            occlusion = Occlusion(self.model)
-            attribution_methods.append(("Occlusion", occlusion))
-        except Exception as e:
-            print(f"Occlusion not available: {e}")
-
-        # Try Integrated Gradients
-        print("Calculating Integrated Gradients...")
-        try:
-            integrated_grads = IntegratedGradients(self.model)
-            attribution_methods.append(("Integrated Gradients", integrated_grads))
-        except Exception as e:
-            print(f"IntegratedGradients not available: {e}")
-
-        # Try DeepLift
-        print("Calculating DeepLift...")
-        try:
-            deeplift = DeepLift(self.model)
-            attribution_methods.append(("DeepLift", deeplift))
-        except Exception as e:
-            print(f"DeepLift not available: {e}")
-
-        # Try Guided Backpropagation
-        print("Calculating Guided Backpropagation...")
-        try:
-            guided_backprop = GuidedBackprop(self.model)
-            attribution_methods.append(("Guided Backpropagation", guided_backprop))
-        except Exception as e:
-            print(f"Guided Backpropagation not available: {e}")
-
-        # Try Noise Tunnel
-        print("Calculating Noise Tunnel...")
-        try:
-            noise_tunnel = NoiseTunnel(integrated_grads)
-            attribution_methods.append(("Noise Tunnel", noise_tunnel))
-        except Exception as e:
-            print(f"Noise Tunnel not available: {e}")
-
-        # If no methods are available, return
+        # If no methods are available, return early
         if not attribution_methods:
-            print("No attribution methods available for this model")
+            print("No valid attribution methods selected.")
             return {}
 
         # Calculate number of plots needed
@@ -130,6 +158,10 @@ class XAI_CAPTUM:
 
         # Plot results
         fig, axes = plt.subplots(1, 1 + n_methods, figsize=(5 * (1 + n_methods), 5))
+
+        # Handle case when only one plot (original + one method)
+        if n_methods == 1:
+            axes = np.array([axes[0], axes[1]])
 
         # Original image
         input_image = image.detach().cpu().numpy().squeeze(0)
@@ -145,6 +177,7 @@ class XAI_CAPTUM:
         attributions = {}
         for i, (method_name, method) in enumerate(attribution_methods):
             try:
+                print(f"Calculating {method_name} attribution...")
                 # Special handling for Occlusion which has different parameters
                 if method_name == "Occlusion":
                     window_shape = (1, 16, 16) if image.shape[-1] >= 64 else (1, 3, 3)
