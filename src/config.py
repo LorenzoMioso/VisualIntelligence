@@ -1,6 +1,7 @@
-import torch
 from dataclasses import dataclass
-from typing import Dict, List, Union, Tuple
+from typing import Dict, List, Tuple, Union
+
+import torch
 
 # Constants for class names
 ADENOCARCINOMA = "adenocarcinoma"
@@ -20,13 +21,12 @@ class ModelConfig:
     """Configuration for model training and evaluation"""
 
     num_epochs: int = 50
-    patience: int = 10
+    patience: int = 5
     min_delta: float = 0.001
     target_image_size: int = 768  # The code is written to work with 768x768 images
     k_folds: int = 10
     batch_size: int = 64
-    learning_rate: float = 1e-4
-    weight_decay: float = 5e-4
+    learning_rate: float = 1e-3
 
 
 @dataclass
@@ -61,6 +61,10 @@ class PathConfig:
     @property
     def model_result_metrics_path(self) -> str:
         return f"{self.output_dir}/metrics_"
+
+    @property
+    def scatnet_params_path(self) -> str:
+        return f"{self.output_dir}/scatnet_params.csv"
 
 
 # Create instances of configs for easy import

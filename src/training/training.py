@@ -1,11 +1,10 @@
 import json
 from timeit import default_timer as timer
-from typing import Dict, List, Optional, Tuple, Union, Any, Callable
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 import torch
 import torch.nn as nn
-from torch.nn import utils as nn_utils
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
@@ -31,7 +30,7 @@ class Trainer:
         self.model_analyzer = ModelAnalyzer(model)
 
     def train_step(
-        self, dataloader: DataLoader, optimizer: torch.optim.Optimizer, epoch: int
+        self, dataloader: DataLoader, optimizer: torch.optim.Optimizer
     ) -> Tuple[float, float]:
         """
         Execute one training epoch
@@ -48,11 +47,6 @@ class Trainer:
         train_loss, train_acc = 0, 0
 
         for _, (img, label) in enumerate(dataloader):
-            # Learning rate warmup
-            warmup_percent = min(epoch / 3, 1.0)
-            current_lr = 5e-4 * warmup_percent
-            for param_group in optimizer.param_groups:
-                param_group["lr"] = current_lr
 
             # Move data to device
             X = img.to(self.device)
@@ -66,7 +60,6 @@ class Trainer:
             # Backward pass
             optimizer.zero_grad()
             loss.backward()
-            nn_utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
             optimizer.step()
 
             # Calculate accuracy
@@ -107,20 +100,6 @@ class Trainer:
         # Return average loss and accuracy
         return val_loss / len(dataloader), val_acc / len(dataloader)
 
-    def create_scheduler(self, optimizer: torch.optim.Optimizer):
-        """
-        Create a learning rate scheduler
-
-        Args:
-            optimizer: Optimizer to schedule
-
-        Returns:
-            Learning rate scheduler
-        """
-        return torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-            optimizer, T_0=5, T_mult=1, eta_min=1e-6
-        )
-
     def train(
         self,
         train_dataloader: DataLoader,
@@ -152,16 +131,11 @@ class Trainer:
         best_val_acc = 0.0
         epochs_without_improvement = 0
 
-        # Setup scheduler
-        scheduler = self.create_scheduler(optimizer)
-
         # Training loop
         for epoch in tqdm(range(epochs)):
             # Training and validation steps
-            train_loss, train_acc = self.train_step(train_dataloader, optimizer, epoch)
+            train_loss, train_acc = self.train_step(train_dataloader, optimizer)
             val_loss, val_acc = self.val_step(val_dataloader)
-
-            scheduler.step()
 
             # Early stopping check
             if val_loss < best_val_loss - min_delta:
@@ -260,7 +234,6 @@ class CrossValidationTrainer:
         return torch.optim.Adam(
             self.model.parameters(),
             lr=MODEL_CONFIG.learning_rate,
-            weight_decay=MODEL_CONFIG.weight_decay,
         )
 
     def train_all_folds(
@@ -322,6 +295,9 @@ class CrossValidationTrainer:
         train_loader, val_loader = data_manager.create_dataloaders(
             train_idx, val_idx, mean, std, batch_size=MODEL_CONFIG.batch_size
         )
+
+        print(f"Train loader length: {len(train_loader)}")
+        print(f"Val loader length: {len(val_loader)}")
 
         # Create fresh optimizer for each fold
         optimizer = self.create_optimizer()

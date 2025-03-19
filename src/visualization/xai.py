@@ -1,13 +1,11 @@
 import random
-import numpy as np
-from kymatio.scattering2d.filter_bank import filter_bank
-from scipy.fft import fft2
-
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from captum.attr import Occlusion
+from kymatio.scattering2d.filter_bank import filter_bank
+from scipy.fft import fft2
 
 from src.config import device
 
@@ -76,6 +74,7 @@ class XAI:
             plt.suptitle(f"Conv Layer {idx+1} Filters")
             plt.tight_layout()
             plt.show()
+            break
 
     def show_scattering_filters(self):
         # Gray-scale filters

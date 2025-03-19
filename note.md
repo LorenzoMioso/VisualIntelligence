@@ -1,11 +1,51 @@
 # Key points discovered
 
-- The model is learning the color of the class -> turnimg the image to gray scale
+- The class average color is sufficient for the model to classify the images with high accuracy, we need to focus on the structural features
+- The dataset is balanced and the images are size 768x768 pixels, keeping the oringinal size because of the small cell structures
+- With grayscale images, the model is able to classify the images with high accuracy
 - CNN is good at learning even with a small classifier layer
 - Scatnet needs more complex classifier layer
 - CNN reaces 99% accuracy
 - Scatnet reaches 92% accuracy
 - CNN is faster than Scatnet
+- using a low lr=1e-4 for cnn does not make filters converge, using lr=1e-3 makes the filters converge
+
+# CNN architecture
+
+==========================================================================================
+Layer (type:depth-idx) Output Shape Param #
+==========================================================================================
+CNNImageClassifier [1, 2] --
+├─Sequential: 1-1 [1, 24, 4, 4] --
+│ └─Conv2d: 2-1 [1, 16, 382, 382] 1,952
+│ └─BatchNorm2d: 2-2 [1, 16, 382, 382] 32
+│ └─ReLU: 2-3 [1, 16, 382, 382] --
+│ └─MaxPool2d: 2-4 [1, 16, 191, 191] --
+│ └─Conv2d: 2-5 [1, 16, 191, 191] 2,320
+│ └─BatchNorm2d: 2-6 [1, 16, 191, 191] 32
+│ └─ReLU: 2-7 [1, 16, 191, 191] --
+│ └─MaxPool2d: 2-8 [1, 16, 95, 95] --
+│ └─Conv2d: 2-9 [1, 24, 95, 95] 3,480
+│ └─BatchNorm2d: 2-10 [1, 24, 95, 95] 48
+│ └─ReLU: 2-11 [1, 24, 95, 95] --
+│ └─AdaptiveAvgPool2d: 2-12 [1, 24, 4, 4] --
+├─FeatureClassifier: 1-2 [1, 2] --
+│ └─Linear: 2-13 [1, 16] 6,160
+│ └─BatchNorm1d: 2-14 [1, 16] 32
+│ └─ReLU: 2-15 [1, 16] --
+│ └─Dropout: 2-16 [1, 16] --
+│ └─Linear: 2-17 [1, 2] 34
+==========================================================================================
+Total params: 14,090
+Trainable params: 14,090
+Non-trainable params: 0
+Total mult-adds (Units.MEGABYTES): 400.89
+==========================================================================================
+Input size (MB): 2.36
+Forward/backward pass size (MB): 50.16
+Params size (MB): 0.06
+Estimated Total Size (MB): 52.58
+==========================================================================================
 
 ## CNN Stats:
 
@@ -38,49 +78,3 @@ Fold 9 - Accuracy: 0.8650, F1 Score: 0.8524
 
 Mean Accuracy: 0.8788
 Mean F1 Score: 0.8668
-
-# Prensentation
-
-1. Introduction & Problem Statement (1-2 minutes)
-
-   - Dataset overview: Lung cancer histopathological images
-   - Binary classification task: adenocarcinoma vs benign
-   - Project objectives
-
-2. Data Preprocessing & Setup (2-3 minutes)
-
-   - Dataset split methodology
-   - Data augmentation decisions
-   - Note about color vs grayscale (from your notes: "The model is learning the color of the class -> turning the image to gray scale")
-
-3. Model Architectures (3-4 minutes)
-
-   - CNN architecture details
-   - ScatNet architecture
-   - Classifier layer design (from your notes: "CNN is good at learning even with a small classifier layer" and "Scatnet needs more complex classifier layer")
-
-4. Training & Evaluation (3-4 minutes)
-
-   - K-fold cross-validation results
-   - Performance metrics
-   - Key findings (from your notes: "CNN reaches 99% accuracy" and "Scatnet reaches 92% accuracy")
-   - Computational efficiency (from your notes: "CNN is faster than Scatnet")
-
-5. Filter Analysis (2-3 minutes)
-
-   - Comparison of filters from both models
-   - Visual interpretation of learned features
-   - Impact of data augmentation on filter quality
-
-6. Explainable AI Results (2-3 minutes)
-
-   - Implementation details of assigned XAI method
-   - Comparison between custom implementation and Captum library
-   - Attribution maps analysis
-
-7. Conclusions (1-2 minutes)
-   - Performance comparison summary
-   - Key findings and insights
-   - Future improvements or recommendations
-
-Each section should include relevant visualizations (learning curves, filters, attribution maps) to support the discussion, as specifically requested in the assignment instructions.

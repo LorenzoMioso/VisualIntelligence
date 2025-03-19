@@ -1,0 +1,45 @@
+# Prensentation
+
+1. Introduction & Problem Statement (1-2 minutes)
+
+   - Dataset overview: Lung cancer histopathological images
+   - Binary classification task: adenocarcinoma vs benign
+   - Project objectives
+
+2. Data Preprocessing & Setup (2-3 minutes)
+
+   - Dataset split methodology
+   - Data augmentation decisions
+   - Note about color vs grayscale (from your notes: "The model is learning the color of the class -> turning the image to gray scale")
+
+3. Model Architectures (3-4 minutes)
+
+   - CNN architecture details
+   - ScatNet architecture
+   - Classifier layer design (from your notes: "CNN is good at learning even with a small classifier layer" and "Scatnet needs more complex classifier layer")
+
+4. Training & Evaluation (3-4 minutes)
+
+   - K-fold cross-validation results
+   - Performance metrics
+   - Key findings (from your notes: "CNN reaches 99% accuracy" and "Scatnet reaches 92% accuracy")
+   - Computational efficiency (from your notes: "CNN is faster than Scatnet")
+
+5. Filter Analysis (2-3 minutes)
+
+   - Comparison of filters from both models
+   - Visual interpretation of learned features
+   - Impact of data augmentation on filter quality
+
+6. Explainable AI Results (2-3 minutes)
+
+   - Implementation details of assigned XAI method
+   - Comparison between custom implementation and Captum library
+   - Attribution maps analysis
+
+7. Conclusions (1-2 minutes)
+   - Performance comparison summary
+   - Key findings and insights
+
+
+Each section should include relevant visualizations (learning curves, filters, attribution maps) to support the discussion, as specifically requested in the assignment instructions.

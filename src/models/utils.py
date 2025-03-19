@@ -2,9 +2,10 @@ import torch
 import torch.nn.functional as F
 from torch.profiler import ProfilerActivity, profile
 from torchinfo import summary
+
+from src.config import MODEL_CONFIG, device
 from src.models.cnn import CNNImageClassifier
 from src.models.scatnet import ScatNetImageClassifier
-from src.config import MODEL_CONFIG, device
 
 
 class ModelAnalyzer:
@@ -94,7 +95,9 @@ class ModelAnalyzer:
             The loaded model
         """
         # Load checkpoint
-        checkpoint = torch.load(filepath, map_location=torch.device(device))
+        checkpoint = torch.load(
+            filepath, map_location=torch.device(device), weights_only=False
+        )
 
         # Get model class name from checkpoint
         model_class_name = checkpoint.get("model_class")
@@ -110,6 +113,8 @@ class ModelAnalyzer:
 
         # Load state dict
         model.load_state_dict(checkpoint["state_dict"])
+        for parameter in model.parameters():
+            parameter.requires_grad = False
 
         # Prepare for inference
         model.eval()

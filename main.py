@@ -1,10 +1,13 @@
 import random
+
 import pandas as pd
 from torchvision import transforms
+
 from src.config import MODEL_CONFIG, PATH_CONFIG, device
 from src.dataset import DataManager
 from src.models.cnn import CNNImageClassifier
 from src.models.scatnet import ScatNetImageClassifier
+from src.models.scatnet_optimizer import ScatNetOptimizer
 from src.models.utils import ModelAnalyzer
 from src.training.metrics import TrainingMetrics
 from src.training.training import CrossValidationTrainer
@@ -37,6 +40,7 @@ class Runner:
         return self
 
     def get_model(self, checkpoint_id=None):
+        print(f"Loading model from checkpoint {checkpoint_id}")
         """Load or create a model"""
         model_analyzer = ModelAnalyzer()
 
@@ -45,6 +49,7 @@ class Runner:
             checkpoint_path = f"{PATH_CONFIG.model_checkpoint_path}{checkpoint_id}_{self.model_class.__name__}.pth"
             model = model_analyzer.load_checkpoint(checkpoint_path)
         else:
+            print(f"Creating model instance of {self.model_class.__name__}")
             # Create new model instance
             model = self.model_class().to(device)
 
@@ -86,27 +91,35 @@ class Runner:
 
         # Train using cross-validation
         cv_trainer = CrossValidationTrainer(model)
-        cv_trainer.train_all_folds(self.df, num_folds=1)
+        print("Training all folds...")
+        cv_trainer.train_all_folds(self.df, num_folds=10)
 
         return model
 
-    def compute_metrics(self, checkpoint_id=0, fold_id=0):
+    def compute_metrics(self):
         """Compute and display metrics for an existing model"""
         self.prepare_dataset()
 
         # Load model from checkpoint
-        model = self.get_model(checkpoint_id=checkpoint_id)
-
-        # Create dataloaders for specified fold
-        train_loader, val_loader = self.get_loaders(fold_id)
+        model = self.get_model(checkpoint_id=9)
 
         # Setup analyzer and compute metrics
-        model_analyzer = ModelAnalyzer(model, train_loader, val_loader)
-        tm = TrainingMetrics()
-        metrics = tm.compute_metrics_all_folds(
-            model_analyzer, self.data_manager, model.__class__
+        metrics = TrainingMetrics().compute_metrics_all_folds(
+            self.data_manager, model.__class__
         )
         return metrics
+
+    def show_training_images(self, model_class):
+        """Show training images for a specific fold"""
+        TrainingMetrics().show_training_results(fold_id=0, model_class=model_class)
+
+    def optimize_scatnet_parameters(self, method="grid"):
+        optimizer = ScatNetOptimizer(fold_id=0)
+        if method == "grid":
+            best_params = optimizer.grid_search()
+        else:
+            best_params = optimizer.random_search()
+        return best_params
 
     def run_xai_analysis(self, checkpoint_id=0, idx=4981):
         """Run XAI methods on a sample image"""
@@ -136,7 +149,7 @@ class Runner:
 
         return image, label
 
-    def show_filters(self, checkpoint_id=0):
+    def show_filters(self, checkpoint_id=9):
         model = self.get_model(checkpoint_id=checkpoint_id)
         xai = XAI(model)
         if self.model_class == ScatNetImageClassifier:
@@ -176,10 +189,23 @@ def main():
     # Choose which experiment to run
     runner.train_model()
 
-    # Show filters
-    runner.show_filters()
+    # Optimize ScatNet parameters
+    # best_params = runner.optimize_scatnet_parameters()
+
+    # print(f"Best ScatNet parameters: {best_params}")
+
+    # Alternative: use random search
+    # best_params = runner.optimize_scatnet_parameters_random(
+    #     fold_id=0,
+    #     num_trials=10,
+    #     epochs=5
+    # )
 
     # Other options:
+    # Show filters
+
+    runner.show_filters(checkpoint_id=8)
+
     # Metrics = runner.compute_metrics()
     # Print(metrics)
 
@@ -188,6 +214,8 @@ def main():
 
     # image, label, _ = runner.run_captum_analysis()
     # print(f"Generated Captum attributions for image with label: {label}")
+
+    # runner.show_training_images(model_class)
 
 
 if __name__ == "__main__":

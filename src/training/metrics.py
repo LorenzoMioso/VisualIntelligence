@@ -5,11 +5,9 @@ import numpy as np
 import pandas as pd
 import torch
 
-from src.config import (
-    MODEL_CONFIG,
-    PATH_CONFIG,
-    device,
-)
+from src.config import PATH_CONFIG, device
+from src.models.cnn import CNNImageClassifier
+from src.models.utils import ModelAnalyzer
 
 
 class TrainingMetrics:
@@ -19,7 +17,11 @@ class TrainingMetrics:
         self.train_splits = pd.read_csv(PATH_CONFIG.train_split_path)
         self.val_splits = pd.read_csv(PATH_CONFIG.val_split_path)
 
-    def show_training_results(self, results_from_csv):
+    def show_training_results(self, fold_id=0, model_class=CNNImageClassifier):
+        results_from_csv = pd.read_csv(
+            f"{PATH_CONFIG.fold_model_results_path}{fold_id}_{model_class.__name__}.csv"
+        )
+
         plt.figure(figsize=(15, 7))
 
         # Plot loss
@@ -89,12 +91,12 @@ class TrainingMetrics:
         f1 = self._f1_score(y_true, y_pred)
         return accuracy, f1
 
-    def compute_metrics_all_folds(self, model_loader, dataloader_factory, model_class):
+    def compute_metrics_all_folds(self, dataloader_factory, model_class):
         accuracies = []
         f1_scores = []
 
         for i in range(10):
-            model = model_loader.load_checkpoint(
+            model = ModelAnalyzer().load_checkpoint(
                 f"{PATH_CONFIG.model_checkpoint_path}{i}_{model_class.__name__}.pth"
             )
             train_idx = self.train_splits[f"train_{i}"].values
