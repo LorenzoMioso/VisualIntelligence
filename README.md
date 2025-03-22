@@ -30,11 +30,7 @@ Key features:
 pip install -r requirements.txt
 ```
 
-2. Run the training script:
-
-```bash
-python main.py
-```
+2. Download the dataset from [Kaggle](https://www.kaggle.com/datasets/rm1000/lung-cancer-histopathological-images) and place the zipped file in the root directory.
 
 3. For interactive exploration, use Jupyter notebook:
 
