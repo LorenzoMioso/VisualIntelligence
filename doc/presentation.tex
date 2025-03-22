@@ -372,9 +372,10 @@ Training Speed & \textbf{Faster} & \textbf{Slower} \\
 \begin{column}{0.5\textwidth}
 \begin{itemize}
 \item Visualizes regions \textbf{most influential} for classification
-\item Focuses on \textbf{cellular structures} and \textbf{patterns}
-\item \textbf{Higher resolution} in feature attribution
-\item \textbf{Strong correlation} with pathological markers
+\item \textbf{Guided backpropagation} significantly reduces noise compared to regular backprop
+\item \textbf{Higher resolution} feature attribution with clearer patterns
+\item Captum implementation shows \textbf{similar patterns} despite different color scaling
+\item \textbf{Strong correlation} with pathological markers across all methods
 \end{itemize}
 \end{column}
 \begin{column}{0.5\textwidth}
@@ -395,10 +396,11 @@ Training Speed & \textbf{Faster} & \textbf{Slower} \\
 \begin{columns}[T]
 \begin{column}{0.5\textwidth}
 \begin{itemize}
-\item \textbf{Different activation patterns} compared to CNN
-\item \textbf{More diffuse attribution regions}
-\item Wavelets capture \textbf{texture} but miss \textbf{color information}
-\item \textbf{Less aligned} with pathological indicators
+\item \textbf{Minimal difference} between guided and regular backpropagation
+\item Limited impact of guided backprop due to \textbf{ReLU only in classifier}
+\item \textbf{Non-recognizable patterns} in guided backprop visualization
+\item Attribution shows \textbf{diffuse, less interpretable regions}
+\item \textbf{Less coherent} with pathological indicators
 \end{itemize}
 \end{column}
 \begin{column}{0.5\textwidth}
@@ -415,40 +417,13 @@ Training Speed & \textbf{Faster} & \textbf{Slower} \\
 \end{columns}
 \end{frame}
 
-% Implementation Comparison slide
-\begin{frame}{Custom vs. Library Implementation}
-\textbf{Custom Implementation:}
-\begin{itemize}
-\item Complete control over \textbf{visualization parameters}
-\item Direct access to \textbf{gradient computation}
-\item Greater understanding of \textbf{attribution mechanics}
-\end{itemize}
-
-\textbf{Captum Library:}
-\begin{itemize}
-\item More \textbf{visualization options} and integrated smoothing
-\item \textbf{Consistent API} across different attribution methods
-\item Better \textbf{computational performance}
-\end{itemize}
-
-\begin{block}{Analysis}
-Both implementations highlight similar regions, \textbf{validating our approach}
-\end{block}
-\end{frame}
 
 % Key Insights slide
 \begin{frame}{Key Insights}
 \begin{itemize}
-\item \textbf{Color features} are crucial for lung cancer histopathology classification
-  \begin{itemize}
-  \item The class average color alone is \textbf{highly predictive}
-  \end{itemize}
-\item \textbf{Learned features} (CNN) outperform \textbf{fixed mathematical representations} (ScatNet)
-\item \textbf{Simpler architectures} can outperform sophisticated ones when aligned with data
-\item Even with grayscale images, models achieved \textbf{high accuracy}
-  \begin{itemize}
-  \item Focusing on \textbf{structural features} rather than just color
-  \end{itemize}
+\item \textbf{Color features} are not crucial for lung cancer histopathology classification
+\item \textbf{Learned features} (CNN), in this scenario, are more effective than \textbf{pre-defined features} (ScatNet)
+\item \textbf{CNN} are harder to train but yield \textbf{better performance}
 \end{itemize}
 \end{frame}
 
