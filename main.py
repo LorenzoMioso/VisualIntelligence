@@ -1,13 +1,9 @@
-import random
-
-import pandas as pd
 from torchvision import transforms
 
 from src.config import MODEL_CONFIG, PATH_CONFIG, device
 from src.dataset import DataManager
 from src.models.cnn import CNNImageClassifier
 from src.models.scatnet import ScatNetImageClassifier
-from src.models.scatnet_optimizer import ScatNetOptimizer
 from src.models.utils import ModelAnalyzer
 from src.training.metrics import TrainingMetrics
 from src.training.training import CrossValidationTrainer
@@ -19,14 +15,22 @@ from src.visualization.xai_captum import XAI_CAPTUM
 class Runner:
     """Main class to handle all experiment workflows"""
 
-    def __init__(self, model_class):
+    def __init__(self):
         """Initialize experiment with a model class"""
-        self.model_class = model_class
+        self.model_class = CNNImageClassifier
         self.data_manager = None
         self.df = None
         self.train_splits = None
         self.val_splits = None
         self.stats = None
+
+    def set_model_class(self, model_class):
+        """Set the model class for the experiment"""
+        if model_class not in [ScatNetImageClassifier, CNNImageClassifier]:
+            raise ValueError(
+                "Invalid model class. Choose either ScatNetImageClassifier or ScatNetOptimizer."
+            )
+        self.model_class = model_class
 
     def prepare_dataset(self):
         """Prepare dataset and return necessary components"""
@@ -96,32 +100,11 @@ class Runner:
 
         return model
 
-    def compute_metrics(self):
-        """Compute and display metrics for an existing model"""
-        self.prepare_dataset()
-
-        # Load model from checkpoint
-        model = self.get_model(checkpoint_id=9)
-
-        # Setup analyzer and compute metrics
-        metrics = TrainingMetrics().compute_metrics_all_folds(
-            self.data_manager, model.__class__
-        )
-        return metrics
-
     def show_training_images(self, model_class):
         """Show training images for a specific fold"""
         TrainingMetrics().show_training_results(fold_id=0, model_class=model_class)
 
-    def optimize_scatnet_parameters(self, method="grid"):
-        optimizer = ScatNetOptimizer(fold_id=0)
-        if method == "grid":
-            best_params = optimizer.grid_search()
-        else:
-            best_params = optimizer.random_search()
-        return best_params
-
-    def run_xai_analysis(self, checkpoint_id=0, idx=4981):
+    def run_xai_analysis(self, checkpoint_id=0, idx=4981, show_original=True):
         """Run XAI methods on a sample image"""
         self.prepare_dataset()
 
@@ -132,8 +115,8 @@ class Runner:
         xai = XAI(model)
 
         # Get test image
-        image, label, _ = DatasetVisualizer(self.df).get_random_image(
-            tensor=True, dataset_path=PATH_CONFIG.dataset_resized_path, idx=idx
+        image, label, _ = DatasetVisualizer(self.df).get_dataset_image(
+            tensor=True, dataset_path=PATH_CONFIG.dataset_path, idx=idx
         )
 
         # Normalize image
@@ -144,8 +127,8 @@ class Runner:
         image = val_transform(image)
 
         # Run XAI methods
-        xai.backpropagation(image)
-        xai.guided_backpropagation(image)
+        xai.backpropagation(image, show_original=show_original)
+        xai.guided_backpropagation(image, show_original=show_original)
 
         return image, label
 
@@ -153,11 +136,12 @@ class Runner:
         model = self.get_model(checkpoint_id=checkpoint_id)
         xai = XAI(model)
         if self.model_class == ScatNetImageClassifier:
-            xai.show_scattering_filters()
+            xai.show_wavelet_filters()
+            xai.show_low_pass_filter()
         else:
             xai.show_conv_filters()
 
-    def run_captum_analysis(self, checkpoint_id=0, idx=0):
+    def run_captum_analysis(self, checkpoint_id=0, idx=0, show_original=True):
         """Run model attributions using Captum"""
         self.prepare_dataset()
 
@@ -165,13 +149,13 @@ class Runner:
         model = self.get_model(checkpoint_id=checkpoint_id)
 
         # Get test image
-        image, label, _ = DatasetVisualizer(self.df).get_random_image(
-            tensor=True, dataset_path=PATH_CONFIG.dataset_resized_path, idx=idx
+        image, label, _ = DatasetVisualizer(self.df).get_dataset_image(
+            tensor=True, dataset_path=PATH_CONFIG.dataset_path, idx=idx
         )
 
         # Visualize attributions
         attributions = XAI_CAPTUM(model).visualize_model_attributions(
-            image, methods=["Guided Backpropagation"]
+            image, methods=["Guided Backpropagation"], show_original=show_original
         )
 
         return image, label, attributions
@@ -180,42 +164,28 @@ class Runner:
 def main():
     """Main function to execute experiments"""
     # Choose which model to use
-    # model_class = ScatNetImageClassifier
-    model_class = CNNImageClassifier
+    model_class = ScatNetImageClassifier
+    # model_class = CNNImageClassifier
 
     # Create experiment runner
-    runner = Runner(model_class)
+    runner = Runner()
+    runner.set_model_class(model_class)
 
     # Choose which experiment to run
-    runner.train_model()
+    # runner.train_model()
 
-    # Optimize ScatNet parameters
-    # best_params = runner.optimize_scatnet_parameters()
-
-    # print(f"Best ScatNet parameters: {best_params}")
-
-    # Alternative: use random search
-    # best_params = runner.optimize_scatnet_parameters_random(
-    #     fold_id=0,
-    #     num_trials=10,
-    #     epochs=5
-    # )
-
-    # Other options:
     # Show filters
+    runner.show_filters(checkpoint_id=9)
 
-    runner.show_filters(checkpoint_id=8)
+    tm = TrainingMetrics()
+    metrics = tm.compute_metrics_all_folds(runner.data_manager, model_class)
+    print(metrics)
 
-    # Metrics = runner.compute_metrics()
-    # Print(metrics)
+    image, label = runner.run_xai_analysis()
+    print(f"Analyzed image with label: {label}")
 
-    # image, label = runner.run_xai_analysis()
-    # print(f"Analyzed image with label: {label}")
-
-    # image, label, _ = runner.run_captum_analysis()
-    # print(f"Generated Captum attributions for image with label: {label}")
-
-    # runner.show_training_images(model_class)
+    image, label, _ = runner.run_captum_analysis()
+    print(f"Generated Captum attributions for image with label: {label}")
 
 
 if __name__ == "__main__":

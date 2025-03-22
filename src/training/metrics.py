@@ -17,15 +17,23 @@ class TrainingMetrics:
         self.train_splits = pd.read_csv(PATH_CONFIG.train_split_path)
         self.val_splits = pd.read_csv(PATH_CONFIG.val_split_path)
 
-    def show_training_results(self, fold_id=0, model_class=CNNImageClassifier):
+    def show_training_results(
+        self, fold_id=0, model_class=CNNImageClassifier, vertical_layout=False
+    ):
         results_from_csv = pd.read_csv(
             f"{PATH_CONFIG.fold_model_results_path}{fold_id}_{model_class.__name__}.csv"
         )
 
-        plt.figure(figsize=(15, 7))
+        # Adjust figure size and subplot layout based on orientation
+        if vertical_layout:
+            plt.figure(figsize=(10, 12))
+            rows, cols = 2, 1
+        else:
+            plt.figure(figsize=(15, 7))
+            rows, cols = 1, 2
 
         # Plot loss
-        plt.subplot(1, 2, 1)
+        plt.subplot(rows, cols, 1)
         plt.plot(
             results_from_csv["epochs"],
             results_from_csv["train_loss"],
@@ -39,7 +47,7 @@ class TrainingMetrics:
         plt.legend()
 
         # Plot accuracy
-        plt.subplot(1, 2, 2)
+        plt.subplot(rows, cols, 2)
         plt.plot(
             results_from_csv["epochs"],
             results_from_csv["train_acc"],
@@ -53,6 +61,7 @@ class TrainingMetrics:
         plt.title("Accuracy")
         plt.xlabel("Epochs")
         plt.legend()
+        plt.tight_layout()  # Added for better spacing between subplots
         plt.show()
 
     def _f1_score(self, y_true, y_pred):
@@ -116,14 +125,19 @@ class TrainingMetrics:
 
         mean_accuracy = np.mean(accuracies)
         mean_f1_score = np.mean(f1_scores)
-        print(f"\nMean Accuracy: {mean_accuracy:.4f}")
-        print(f"Mean F1 Score: {mean_f1_score:.4f}")
+        std_accuracy = np.std(accuracies)
+        std_f1_score = np.std(f1_scores)
+
+        print(f"\nMean Accuracy: {mean_accuracy:.4f} ± {std_accuracy:.4f}")
+        print(f"Mean F1 Score: {mean_f1_score:.4f} ± {std_f1_score:.4f}")
 
         result = {
             "accuracies": accuracies,
             "f1_scores": f1_scores,
             "mean_accuracy": mean_accuracy,
             "mean_f1_score": mean_f1_score,
+            "std_accuracy": std_accuracy,
+            "std_f1_score": std_f1_score,
         }
 
         # save to file

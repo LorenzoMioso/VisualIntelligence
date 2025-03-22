@@ -34,8 +34,8 @@ class PathConfig:
     """Configuration for file and directory paths"""
 
     dataset_zip_path: str = "dataset.zip"
+    dataset_orig_path: str = "dataset_orig"
     dataset_path: str = "dataset"
-    dataset_resized_path: str = "dataset_resized"
     output_dir: str = "outputs"
 
     @property

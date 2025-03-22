@@ -3,7 +3,6 @@ import torch.nn as nn
 from kymatio.torch import Scattering2D
 
 from src.config import MODEL_CONFIG
-
 from src.models.classifier import FeatureClassifier
 
 
@@ -19,7 +18,7 @@ class ScatNetImageClassifier(nn.Module):
             shape=(MODEL_CONFIG.target_image_size, MODEL_CONFIG.target_image_size),
         )
         # pool
-        self.global_pool = nn.AdaptiveAvgPool2d(1)
+        self.global_pool = nn.AdaptiveAvgPool2d((4, 4))
         if M == 1:
             feature_size = 1 + L * J
         elif M == 2:
@@ -33,12 +32,19 @@ class ScatNetImageClassifier(nn.Module):
             )
 
         # classifier
-        self.classifier = FeatureClassifier(feature_size)
+        self.classifier = FeatureClassifier(feature_size * 4 * 4)
 
     def forward(self, x):
         # print(f"forward: {x.shape}")
         x = self.scattering(x)
         # print(f"scattering: {x.shape}")
+
+        # Reshape the 5D output from scattering to 4D for pooling
+        # The scattering transform outputs [batch_size, 1, feature_dim, height, width]
+        batch_size = x.shape[0]
+        feature_dim = x.shape[2]
+        x = x.view(batch_size, feature_dim, x.shape[3], x.shape[4])
+
         x = self.global_pool(x)
         # print(f"global_pool: {x.shape}")
         x = torch.flatten(x, 1)

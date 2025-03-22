@@ -12,69 +12,78 @@
 
 # CNN architecture
 
-==========================================================================================
-Layer (type:depth-idx) Output Shape Param #
-==========================================================================================
-CNNImageClassifier [1, 2] --
-├─Sequential: 1-1 [1, 24, 4, 4] --
-│ └─Conv2d: 2-1 [1, 16, 382, 382] 1,952
-│ └─BatchNorm2d: 2-2 [1, 16, 382, 382] 32
-│ └─ReLU: 2-3 [1, 16, 382, 382] --
-│ └─MaxPool2d: 2-4 [1, 16, 191, 191] --
-│ └─Conv2d: 2-5 [1, 16, 191, 191] 2,320
-│ └─BatchNorm2d: 2-6 [1, 16, 191, 191] 32
-│ └─ReLU: 2-7 [1, 16, 191, 191] --
-│ └─MaxPool2d: 2-8 [1, 16, 95, 95] --
-│ └─Conv2d: 2-9 [1, 24, 95, 95] 3,480
-│ └─BatchNorm2d: 2-10 [1, 24, 95, 95] 48
-│ └─ReLU: 2-11 [1, 24, 95, 95] --
-│ └─AdaptiveAvgPool2d: 2-12 [1, 24, 4, 4] --
-├─FeatureClassifier: 1-2 [1, 2] --
-│ └─Linear: 2-13 [1, 16] 6,160
-│ └─BatchNorm1d: 2-14 [1, 16] 32
-│ └─ReLU: 2-15 [1, 16] --
-│ └─Dropout: 2-16 [1, 16] --
-│ └─Linear: 2-17 [1, 2] 34
-==========================================================================================
-Total params: 14,090
-Trainable params: 14,090
-Non-trainable params: 0
-Total mult-adds (Units.MEGABYTES): 400.89
-==========================================================================================
-Input size (MB): 2.36
-Forward/backward pass size (MB): 50.16
-Params size (MB): 0.06
-Estimated Total Size (MB): 52.58
-==========================================================================================
+CNNImageClassifier(
+(features): Sequential(
+(0): Conv2d(1, 16, kernel_size=(11, 11), stride=(2, 2), padding=(3, 3))
+(1): BatchNorm2d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+(2): ReLU()
+(3): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+(4): Conv2d(16, 16, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+(5): BatchNorm2d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+(6): ReLU()
+(7): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+(8): Conv2d(16, 24, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+(9): BatchNorm2d(24, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+(10): ReLU()
+(11): AdaptiveAvgPool2d(output_size=(4, 4))
+)
+(classifier): FeatureClassifier(
+(fc1): Linear(in_features=384, out_features=16, bias=True)
+(bn): BatchNorm1d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+(relu): ReLU()
+(do): Dropout(p=0.5, inplace=False)
+(fc2): Linear(in_features=16, out_features=2, bias=True)
+)
+)
+
+# ScatNet architecture
+
+ScatNetImageClassifier(
+(scattering): Scattering2D()
+(global_pool): AdaptiveAvgPool2d(output_size=(4, 4))
+(classifier): FeatureClassifier(
+(fc1): Linear(in_features=3472, out_features=16, bias=True)
+(bn): BatchNorm1d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+(relu): ReLU()
+(do): Dropout(p=0.5, inplace=False)
+(fc2): Linear(in_features=16, out_features=2, bias=True)
+)
+)
 
 ## CNN Stats:
 
-Fold 0 - Accuracy: 0.9760, F1 Score: 0.9764
-Fold 1 - Accuracy: 0.9760, F1 Score: 0.9764
-Fold 2 - Accuracy: 0.9920, F1 Score: 0.9920
-Fold 3 - Accuracy: 0.9930, F1 Score: 0.9930
-Fold 4 - Accuracy: 0.9820, F1 Score: 0.9823
-Fold 5 - Accuracy: 0.9930, F1 Score: 0.9930
-Fold 6 - Accuracy: 0.9950, F1 Score: 0.9950
-Fold 7 - Accuracy: 0.9910, F1 Score: 0.9910
-Fold 8 - Accuracy: 0.9960, F1 Score: 0.9960
-Fold 9 - Accuracy: 0.9930, F1 Score: 0.9930
+Evaluating model performance across all folds...
+Loading model from checkpoint 9
+Fold 0 - Accuracy: 0.9800, F1 Score: 0.9801
+Fold 1 - Accuracy: 0.9770, F1 Score: 0.9774
+Fold 2 - Accuracy: 0.9940, F1 Score: 0.9940
+Fold 3 - Accuracy: 0.9970, F1 Score: 0.9970
+Fold 4 - Accuracy: 0.9960, F1 Score: 0.9960
+Fold 5 - Accuracy: 0.9960, F1 Score: 0.9960
+Fold 6 - Accuracy: 0.9960, F1 Score: 0.9960
+Fold 7 - Accuracy: 0.9930, F1 Score: 0.9930
+Fold 8 - Accuracy: 0.9980, F1 Score: 0.9980
+Fold 9 - Accuracy: 0.9990, F1 Score: 0.9990
 
-Mean Accuracy: 0.9887
-Mean F1 Score: 0.9888
+Mean Accuracy: 0.9926 ± 0.0072
+Mean F1 Score: 0.9927 ± 0.0072
+Model evaluation completed.
 
 ## ScatNet Stats:
 
-Fold 0 - Accuracy: 0.9110, F1 Score: 0.9079
-Fold 1 - Accuracy: 0.9260, F1 Score: 0.9270
-Fold 2 - Accuracy: 0.8870, F1 Score: 0.8781
-Fold 3 - Accuracy: 0.8890, F1 Score: 0.8797
-Fold 4 - Accuracy: 0.8820, F1 Score: 0.8728
-Fold 5 - Accuracy: 0.8110, F1 Score: 0.7736
-Fold 6 - Accuracy: 0.8500, F1 Score: 0.8275
-Fold 7 - Accuracy: 0.8780, F1 Score: 0.8671
-Fold 8 - Accuracy: 0.8890, F1 Score: 0.8817
-Fold 9 - Accuracy: 0.8650, F1 Score: 0.8524
+Evaluating model performance across all folds...
+Loading model from checkpoint 9
+Fold 0 - Accuracy: 0.9210, F1 Score: 0.9209
+Fold 1 - Accuracy: 0.8910, F1 Score: 0.8868
+Fold 2 - Accuracy: 0.9290, F1 Score: 0.9279
+Fold 3 - Accuracy: 0.9250, F1 Score: 0.9208
+Fold 4 - Accuracy: 0.9380, F1 Score: 0.9371
+Fold 5 - Accuracy: 0.9440, F1 Score: 0.9443
+Fold 6 - Accuracy: 0.9510, F1 Score: 0.9506
+Fold 7 - Accuracy: 0.9380, F1 Score: 0.9358
+Fold 8 - Accuracy: 0.9230, F1 Score: 0.9197
+Fold 9 - Accuracy: 0.9390, F1 Score: 0.9388
 
-Mean Accuracy: 0.8788
-Mean F1 Score: 0.8668
+Mean Accuracy: 0.9299 ± 0.0159
+Mean F1 Score: 0.9283 ± 0.0170
+Model evaluation completed.

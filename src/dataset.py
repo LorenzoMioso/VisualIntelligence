@@ -16,14 +16,14 @@ from torchvision.io.image import decode_jpeg, read_file
 from tqdm.auto import tqdm
 
 from src.config import (
-    MODEL_CONFIG,
-    PATH_CONFIG,
     ADENOCARCINOMA,
     BENIGN,
+    MODEL_CONFIG,
+    PATH_CONFIG,
     SQUAMOUS_CELL_CARCINOMA,
-    device,
     class_0,
     class_1,
+    device,
 )
 
 
@@ -35,7 +35,7 @@ class LungCancerDataset(Dataset):
         df: pd.DataFrame,
         folder_path: str,
         transform: Optional[transforms.Compose] = None,
-        cache_size: int = 100,
+        cache_size: int = 1000,
     ):
         self.df = df
         self.folder_path = folder_path
@@ -56,7 +56,7 @@ class LungCancerDataset(Dataset):
 
             # Read the image using torchvision's high-performance I/O
             data = read_file(img_path)
-            image = decode_jpeg(data, device=device, mode=ImageReadMode.GRAY) / 255
+            image = decode_jpeg(data, device=device, mode=ImageReadMode.GRAY) / 255  # type: ignore
 
             # Convert class to tensor
             label = 1 if img_class == class_1 else 0
@@ -83,20 +83,20 @@ class DataManager:
         self, image_size: int = MODEL_CONFIG.target_image_size
     ) -> pd.DataFrame:
         """One-stop method to prepare the dataset for use"""
-        self.df = self._init_dataset(image_size)
-        return self.df
+        df = self._init_dataset(image_size)
+        return df
 
     def _init_dataset(self, size: int) -> pd.DataFrame:
         """Initialize the dataset - extract if needed and process if needed"""
-        if not self._dataset_exists(PATH_CONFIG.dataset_path):
+        if not self._dataset_exists(PATH_CONFIG.dataset_orig_path):
             self._extract_dataset()
 
-        self._create_dataset_df()
+        df = self._create_dataset_df()
 
-        if not self._dataset_exists(PATH_CONFIG.dataset_resized_path):
+        if not self._dataset_exists(PATH_CONFIG.dataset_path):
             self._process_dataset(size)
 
-        return self.df
+        return df
 
     def _dataset_exists(self, path: str, no_files: int = 10000) -> bool:
         """Check if directory exists with sufficient files"""
@@ -117,21 +117,21 @@ class DataManager:
             zip_ref.extractall()
 
         # move folders to the right place
-        os.makedirs(PATH_CONFIG.dataset_path, exist_ok=True)
-        shutil.move(ADENOCARCINOMA, PATH_CONFIG.dataset_path)
-        shutil.move(SQUAMOUS_CELL_CARCINOMA, PATH_CONFIG.dataset_path)
-        shutil.move(BENIGN, PATH_CONFIG.dataset_path)
+        os.makedirs(PATH_CONFIG.dataset_orig_path, exist_ok=True)
+        shutil.move(ADENOCARCINOMA, PATH_CONFIG.dataset_orig_path)
+        shutil.move(SQUAMOUS_CELL_CARCINOMA, PATH_CONFIG.dataset_orig_path)
+        shutil.move(BENIGN, PATH_CONFIG.dataset_orig_path)
 
     def _process_dataset(self, size: int) -> None:
         """Process images to grayscale and resize"""
         if self.df is None:
             raise ValueError("Dataset DataFrame not initialized")
 
-        os.makedirs(PATH_CONFIG.dataset_resized_path, exist_ok=True)
+        os.makedirs(PATH_CONFIG.dataset_path, exist_ok=True)
 
         for idx in tqdm(range(len(self.df)), desc="Processing images"):
             # Read image with OpenCV
-            img_path = f"{PATH_CONFIG.dataset_path}/{self.df.iloc[idx]['class']}/{self.df.iloc[idx]['filename']}"
+            img_path = f"{PATH_CONFIG.dataset_orig_path}/{self.df.iloc[idx]['class']}/{self.df.iloc[idx]['filename']}"
             image = cv2.imread(img_path)
 
             # Convert to grayscale
@@ -141,20 +141,25 @@ class DataManager:
             result = cv2.resize(gray, (size, size))
 
             # Save
-            dest_path = f"{PATH_CONFIG.dataset_resized_path}/{self.df.iloc[idx]['class']}/{self.df.iloc[idx]['filename']}"
+            dest_path = f"{PATH_CONFIG.dataset_path}/{self.df.iloc[idx]['class']}/{self.df.iloc[idx]['filename']}"
             os.makedirs(os.path.dirname(dest_path), exist_ok=True)
             cv2.imwrite(dest_path, result)
 
-    def _create_dataset_df(self) -> None:
+    def _create_dataset_df(self) -> pd.DataFrame:
         """Create a DataFrame of all images"""
-        allFilesClass0 = sorted(os.listdir(f"{PATH_CONFIG.dataset_path}/{class_0}"))
-        allFilesClass1 = sorted(os.listdir(f"{PATH_CONFIG.dataset_path}/{class_1}"))
+        allFilesClass0 = sorted(
+            os.listdir(f"{PATH_CONFIG.dataset_orig_path}/{class_0}")
+        )
+        allFilesClass1 = sorted(
+            os.listdir(f"{PATH_CONFIG.dataset_orig_path}/{class_1}")
+        )
 
         df = pd.DataFrame(columns=["filename", "class"])
         df["filename"] = allFilesClass0 + allFilesClass1
         df["class"] = [class_0] * len(allFilesClass0) + [class_1] * len(allFilesClass1)
 
         self.df = df
+        return df
 
     def create_splits(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Create K-fold splits for cross-validation"""
@@ -171,7 +176,7 @@ class DataManager:
         train_indexes = []
         val_indexes = []
 
-        for train_index, val_index in skf.split(self.df["filename"], self.df["class"]):
+        for train_index, val_index in skf.split(self.df["filename"], self.df["class"]):  # type: ignore
             train_indexes.append(train_index)
             val_indexes.append(val_index)
 
@@ -203,7 +208,7 @@ class DataManager:
             train_idx = train_splits[f"train_{fold}"].values
 
             # Calculate statistics for this fold
-            mean, std = self._fold_z_score(train_idx)
+            mean, std = self._fold_z_score(train_idx)  # type: ignore
             fold_stats[fold] = {"mean": mean, "std": std}
 
             # Print fold statistics
@@ -230,7 +235,7 @@ class DataManager:
             raise ValueError("Dataset not initialized. Call prepare_dataset first.")
 
         train_df = self.df.iloc[train_idx]
-        train_dataset = LungCancerDataset(train_df, PATH_CONFIG.dataset_resized_path)
+        train_dataset = LungCancerDataset(train_df, PATH_CONFIG.dataset_path)
 
         channels = 1 if is_gray else 3
         channels_sum = torch.zeros(channels, dtype=torch.float64, device=device)
@@ -283,11 +288,11 @@ class DataManager:
                 transforms.RandomHorizontalFlip(),
                 transforms.RandomVerticalFlip(),
                 transforms.RandomRotation(20),
-                transforms.ColorJitter(brightness=0.2, contrast=0.2),
                 transforms.RandomResizedCrop(
                     MODEL_CONFIG.target_image_size, scale=(0.8, 1.0)
                 ),
-                transforms.RandomGrayscale(p=0.1),
+                transforms.ColorJitter(brightness=0.2, contrast=0.2),
+                transforms.GaussianBlur(kernel_size=5, sigma=(0.1, 1.5)),
                 transforms.Normalize(mean=mean, std=std),
             ]
         )
@@ -303,11 +308,11 @@ class DataManager:
         val_df = self.df.iloc[val_idx]
 
         train_dataset = LungCancerDataset(
-            train_df, PATH_CONFIG.dataset_resized_path, transform=train_transform
+            train_df, PATH_CONFIG.dataset_path, transform=train_transform
         )
 
         val_dataset = LungCancerDataset(
-            val_df, PATH_CONFIG.dataset_resized_path, transform=val_transform
+            val_df, PATH_CONFIG.dataset_path, transform=val_transform
         )
 
         # Create dataloaders

@@ -293,7 +293,7 @@ class CrossValidationTrainer:
         data_manager = DataManager()
         data_manager.df = df
         train_loader, val_loader = data_manager.create_dataloaders(
-            train_idx, val_idx, mean, std, batch_size=MODEL_CONFIG.batch_size
+            train_idx, val_idx, mean, std, batch_size=MODEL_CONFIG.batch_size  # type: ignore
         )
 
         print(f"Train loader length: {len(train_loader)}")

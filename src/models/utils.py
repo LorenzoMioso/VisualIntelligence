@@ -43,17 +43,34 @@ class ModelAnalyzer:
             output = self.model(image.float())
             print(f"Sample output: {output}")
 
-        # Print model summary
-        summary(
-            self.model,
-            input_size=(
-                1,
-                1,
-                MODEL_CONFIG.target_image_size,
-                MODEL_CONFIG.target_image_size,
-            ),
-            device=device,
-        )
+        # Print model architecture manually
+        print("\n===== Model Architecture =====")
+        print(f"Model Class: {self.model.__class__.__name__}")
+        print(f"Model Structure:\n{self.model}")
+
+        # Print model summary with explicit display
+        print("\n===== Detailed Model Summary =====")
+        try:
+            summary(
+                self.model,
+                input_size=(
+                    1,
+                    1,
+                    MODEL_CONFIG.target_image_size,
+                    MODEL_CONFIG.target_image_size,
+                ),
+                device=device,
+                verbose=2,  # Increase verbosity
+                col_names=[
+                    "input_size",
+                    "output_size",
+                    "num_params",
+                    "kernel_size",
+                    "mult_adds",
+                ],
+            )
+        except Exception as e:
+            print(f"Error generating model summary: {e}")
 
     def profile_model(self, max_steps=40):
         """

@@ -1,0 +1,289 @@
+strict digraph cnn_features {
+	graph [ordering=in rankdir=TB size="26.4,26.4"]
+	node [align=left fontname="Linux libertine" fontsize=14 height=0.2 margin=0 ranksep=0.3 shape=plaintext style=filled]
+	edge [fontsize=14]
+	0 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                        <TR><TD>input-tensor<BR/>depth:0</TD><TD>(1, 1, 768, 768)</TD></TR>
+                    </TABLE>> fillcolor=lightyellow]
+	subgraph cluster_2 {
+		fontsize=12 label=Sequential labeljust=l style=dashed
+		subgraph cluster_3 {
+			fontsize=12 label=Conv2d labeljust=l style=dashed
+			1 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                    <TR>
+                        <TD ROWSPAN="2">conv2d<BR/>depth:3</TD>
+                        <TD COLSPAN="2">input:</TD>
+                        <TD COLSPAN="2">(1, 1, 768, 768) </TD>
+                    </TR>
+                    <TR>
+                        <TD COLSPAN="2">output: </TD>
+                        <TD COLSPAN="2">(1, 16, 382, 382) </TD>
+                    </TR>
+                    </TABLE>> fillcolor=aliceblue]
+			2 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                        <TR><TD>hidden-tensor<BR/>depth:2</TD><TD>(1, 16, 382, 382)</TD></TR>
+                    </TABLE>> fillcolor=lightyellow]
+		}
+		subgraph cluster_4 {
+			fontsize=12 label=BatchNorm2d labeljust=l style=dashed
+			3 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                    <TR>
+                        <TD ROWSPAN="2">batch_norm<BR/>depth:3</TD>
+                        <TD COLSPAN="2">input:</TD>
+                        <TD COLSPAN="2">(1, 16, 382, 382) </TD>
+                    </TR>
+                    <TR>
+                        <TD COLSPAN="2">output: </TD>
+                        <TD COLSPAN="2">(1, 16, 382, 382) </TD>
+                    </TR>
+                    </TABLE>> fillcolor=aliceblue]
+			4 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                        <TR><TD>hidden-tensor<BR/>depth:2</TD><TD>(1, 16, 382, 382)</TD></TR>
+                    </TABLE>> fillcolor=lightyellow]
+		}
+		subgraph cluster_5 {
+			fontsize=12 label=ReLU labeljust=l style=dashed
+			5 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                    <TR>
+                        <TD ROWSPAN="2">relu<BR/>depth:3</TD>
+                        <TD COLSPAN="2">input:</TD>
+                        <TD COLSPAN="2">(1, 16, 382, 382) </TD>
+                    </TR>
+                    <TR>
+                        <TD COLSPAN="2">output: </TD>
+                        <TD COLSPAN="2">(1, 16, 382, 382) </TD>
+                    </TR>
+                    </TABLE>> fillcolor=aliceblue]
+			6 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                        <TR><TD>hidden-tensor<BR/>depth:2</TD><TD>(1, 16, 382, 382)</TD></TR>
+                    </TABLE>> fillcolor=lightyellow]
+		}
+		subgraph cluster_6 {
+			fontsize=12 label=MaxPool2d labeljust=l style=dashed
+			7 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                    <TR>
+                        <TD ROWSPAN="2">max_pool2d<BR/>depth:3</TD>
+                        <TD COLSPAN="2">input:</TD>
+                        <TD COLSPAN="2">(1, 16, 382, 382) </TD>
+                    </TR>
+                    <TR>
+                        <TD COLSPAN="2">output: </TD>
+                        <TD COLSPAN="2">(1, 16, 191, 191) </TD>
+                    </TR>
+                    </TABLE>> fillcolor=aliceblue]
+			8 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                        <TR><TD>hidden-tensor<BR/>depth:2</TD><TD>(1, 16, 191, 191)</TD></TR>
+                    </TABLE>> fillcolor=lightyellow]
+		}
+		subgraph cluster_7 {
+			fontsize=12 label=Conv2d labeljust=l style=dashed
+			9 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                    <TR>
+                        <TD ROWSPAN="2">conv2d<BR/>depth:3</TD>
+                        <TD COLSPAN="2">input:</TD>
+                        <TD COLSPAN="2">(1, 16, 191, 191) </TD>
+                    </TR>
+                    <TR>
+                        <TD COLSPAN="2">output: </TD>
+                        <TD COLSPAN="2">(1, 16, 191, 191) </TD>
+                    </TR>
+                    </TABLE>> fillcolor=aliceblue]
+			10 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                        <TR><TD>hidden-tensor<BR/>depth:2</TD><TD>(1, 16, 191, 191)</TD></TR>
+                    </TABLE>> fillcolor=lightyellow]
+		}
+		subgraph cluster_8 {
+			fontsize=12 label=BatchNorm2d labeljust=l style=dashed
+			11 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                    <TR>
+                        <TD ROWSPAN="2">batch_norm<BR/>depth:3</TD>
+                        <TD COLSPAN="2">input:</TD>
+                        <TD COLSPAN="2">(1, 16, 191, 191) </TD>
+                    </TR>
+                    <TR>
+                        <TD COLSPAN="2">output: </TD>
+                        <TD COLSPAN="2">(1, 16, 191, 191) </TD>
+                    </TR>
+                    </TABLE>> fillcolor=aliceblue]
+			12 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                        <TR><TD>hidden-tensor<BR/>depth:2</TD><TD>(1, 16, 191, 191)</TD></TR>
+                    </TABLE>> fillcolor=lightyellow]
+		}
+		subgraph cluster_9 {
+			fontsize=12 label=ReLU labeljust=l style=dashed
+			13 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                    <TR>
+                        <TD ROWSPAN="2">relu<BR/>depth:3</TD>
+                        <TD COLSPAN="2">input:</TD>
+                        <TD COLSPAN="2">(1, 16, 191, 191) </TD>
+                    </TR>
+                    <TR>
+                        <TD COLSPAN="2">output: </TD>
+                        <TD COLSPAN="2">(1, 16, 191, 191) </TD>
+                    </TR>
+                    </TABLE>> fillcolor=aliceblue]
+			14 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                        <TR><TD>hidden-tensor<BR/>depth:2</TD><TD>(1, 16, 191, 191)</TD></TR>
+                    </TABLE>> fillcolor=lightyellow]
+		}
+		subgraph cluster_10 {
+			fontsize=12 label=MaxPool2d labeljust=l style=dashed
+			15 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                    <TR>
+                        <TD ROWSPAN="2">max_pool2d<BR/>depth:3</TD>
+                        <TD COLSPAN="2">input:</TD>
+                        <TD COLSPAN="2">(1, 16, 191, 191) </TD>
+                    </TR>
+                    <TR>
+                        <TD COLSPAN="2">output: </TD>
+                        <TD COLSPAN="2">(1, 16, 95, 95) </TD>
+                    </TR>
+                    </TABLE>> fillcolor=aliceblue]
+			16 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                        <TR><TD>hidden-tensor<BR/>depth:2</TD><TD>(1, 16, 95, 95)</TD></TR>
+                    </TABLE>> fillcolor=lightyellow]
+		}
+		subgraph cluster_11 {
+			fontsize=12 label=Conv2d labeljust=l style=dashed
+			17 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                    <TR>
+                        <TD ROWSPAN="2">conv2d<BR/>depth:3</TD>
+                        <TD COLSPAN="2">input:</TD>
+                        <TD COLSPAN="2">(1, 16, 95, 95) </TD>
+                    </TR>
+                    <TR>
+                        <TD COLSPAN="2">output: </TD>
+                        <TD COLSPAN="2">(1, 24, 95, 95) </TD>
+                    </TR>
+                    </TABLE>> fillcolor=aliceblue]
+			18 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                        <TR><TD>hidden-tensor<BR/>depth:2</TD><TD>(1, 24, 95, 95)</TD></TR>
+                    </TABLE>> fillcolor=lightyellow]
+		}
+		subgraph cluster_12 {
+			fontsize=12 label=BatchNorm2d labeljust=l style=dashed
+			19 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                    <TR>
+                        <TD ROWSPAN="2">batch_norm<BR/>depth:3</TD>
+                        <TD COLSPAN="2">input:</TD>
+                        <TD COLSPAN="2">(1, 24, 95, 95) </TD>
+                    </TR>
+                    <TR>
+                        <TD COLSPAN="2">output: </TD>
+                        <TD COLSPAN="2">(1, 24, 95, 95) </TD>
+                    </TR>
+                    </TABLE>> fillcolor=aliceblue]
+			20 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                        <TR><TD>hidden-tensor<BR/>depth:2</TD><TD>(1, 24, 95, 95)</TD></TR>
+                    </TABLE>> fillcolor=lightyellow]
+		}
+		subgraph cluster_13 {
+			fontsize=12 label=ReLU labeljust=l style=dashed
+			21 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                    <TR>
+                        <TD ROWSPAN="2">relu<BR/>depth:3</TD>
+                        <TD COLSPAN="2">input:</TD>
+                        <TD COLSPAN="2">(1, 24, 95, 95) </TD>
+                    </TR>
+                    <TR>
+                        <TD COLSPAN="2">output: </TD>
+                        <TD COLSPAN="2">(1, 24, 95, 95) </TD>
+                    </TR>
+                    </TABLE>> fillcolor=aliceblue]
+			22 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                        <TR><TD>hidden-tensor<BR/>depth:2</TD><TD>(1, 24, 95, 95)</TD></TR>
+                    </TABLE>> fillcolor=lightyellow]
+		}
+		subgraph cluster_14 {
+			fontsize=12 label=AdaptiveAvgPool2d labeljust=l style=dashed
+			23 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                    <TR>
+                        <TD ROWSPAN="2">adaptive_avg_pool2d<BR/>depth:3</TD>
+                        <TD COLSPAN="2">input:</TD>
+                        <TD COLSPAN="2">(1, 24, 95, 95) </TD>
+                    </TR>
+                    <TR>
+                        <TD COLSPAN="2">output: </TD>
+                        <TD COLSPAN="2">(1, 24, 4, 4) </TD>
+                    </TR>
+                    </TABLE>> fillcolor=aliceblue]
+			24 [label=<
+                    <TABLE BORDER="0" CELLBORDER="1"
+                    CELLSPACING="0" CELLPADDING="4">
+                        <TR><TD>output-tensor<BR/>depth:0</TD><TD>(1, 24, 4, 4)</TD></TR>
+                    </TABLE>> fillcolor=lightyellow]
+		}
+	}
+	0 -> 1
+	1 -> 2
+	2 -> 3
+	3 -> 4
+	4 -> 5
+	5 -> 6
+	6 -> 7
+	7 -> 8
+	8 -> 9
+	9 -> 10
+	10 -> 11
+	11 -> 12
+	12 -> 13
+	13 -> 14
+	14 -> 15
+	15 -> 16
+	16 -> 17
+	17 -> 18
+	18 -> 19
+	19 -> 20
+	20 -> 21
+	21 -> 22
+	22 -> 23
+	23 -> 24
+}

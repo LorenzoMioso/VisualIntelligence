@@ -1,9 +1,8 @@
-import random
+from colorsys import hls_to_rgb
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from captum.attr import Occlusion
 from kymatio.scattering2d.filter_bank import filter_bank
 from scipy.fft import fft2
 
@@ -54,92 +53,176 @@ class XAI:
 
             # Calculate grid size
             n_filters, n_channels = weights.shape[0], weights.shape[1]
+            total_images = n_filters * n_channels
 
-            # Create figure
-            fig, axes = plt.subplots(
-                n_channels, n_filters, figsize=(n_filters * 2, n_channels * 2)
-            )
+            # Calculate the number of columns based on 4 rows
+            n_cols = (
+                total_images + 3
+            ) // 4  # Ceiling division to ensure all images fit
 
-            # Plot each filter's channels
+            # Create figure with 4 rows
+            fig, axes = plt.subplots(4, n_cols, figsize=(n_cols * 2, 8))
+
+            # Handle case with fewer than 4 rows or very few filters
+            if total_images <= 4:
+                axes = axes.reshape(-1, 1)
+            elif n_cols == 1:
+                axes = axes.reshape(-1, 1)
+
+            # Plot each filter
             for i in range(n_filters):
                 for j in range(n_channels):
-                    if n_channels == 1:
-                        ax = axes[i] if n_filters > 1 else axes
+                    # Calculate the position in the grid
+                    idx_flat = i * n_channels + j
+                    row_idx = idx_flat // n_cols
+                    col_idx = idx_flat % n_cols
+
+                    # Skip if we exceed 4 rows
+                    if row_idx >= 4:
+                        continue
+
+                    # Handle different axes shapes
+                    if total_images <= 4:
+                        ax = (
+                            axes[idx_flat][0]
+                            if hasattr(axes[idx_flat], "__getitem__")
+                            else axes[idx_flat]
+                        )
+                    elif n_cols == 1:
+                        ax = (
+                            axes[row_idx][0]
+                            if hasattr(axes[row_idx], "__getitem__")
+                            else axes[row_idx]
+                        )
                     else:
-                        ax = axes[j, i] if n_filters > 1 else axes[j]
+                        ax = axes[row_idx, col_idx]
+
                     img = weights[i, j]
                     ax.imshow(img, cmap="viridis")
                     ax.axis("off")
+                    ax.set_title(f"F{i}_C{j}", fontsize=8)
 
-            plt.suptitle(f"Conv Layer {idx+1} Filters")
+            # Hide unused subplots
+            for idx_flat in range(total_images, 4 * n_cols):
+                row_idx = idx_flat // n_cols
+                col_idx = idx_flat % n_cols
+                if row_idx < 4:  # Only consider the first 4 rows
+                    if n_cols == 1:
+                        ax = (
+                            axes[row_idx][0]
+                            if hasattr(axes[row_idx], "__getitem__")
+                            else axes[row_idx]
+                        )
+                    else:
+                        ax = axes[row_idx, col_idx]
+                    ax.axis("off")
+                    ax.set_visible(False)
+
+            plt.suptitle(
+                f"Conv Layer {idx+1} Filters - {n_filters} filters with {n_channels} channels each"
+            )
             plt.tight_layout()
+            plt.subplots_adjust(top=0.9)
             plt.show()
             break
 
-    def show_scattering_filters(self):
-        # Gray-scale filters
+    def show_wavelet_filters(self):
+        """
+        Visualize wavelet filters used in scattering transform
+        Displays filters for different scales (j) and orientations (theta)
+        """
+        # Parameters for filter bank
         M = 32
         J = 3
         L = 8
         filters_set = filter_bank(M, M, J, L=L)
 
-        fig, axs = plt.subplots(J, L, sharex=True, sharey=True)
-        fig.set_figheight(6)
-        fig.set_figwidth(6)
-        # plt.rc('text', usetex=True)
-        plt.rc("font", family="serif")
+        # Count total filters
+        total_filters = J * L
+
+        # Calculate optimal grid dimensions based on aspect ratio
+        grid_width = int(np.ceil(np.sqrt(total_filters * 16 / 9)))  # Wider than tall
+        grid_height = int(np.ceil(total_filters / grid_width))
+
+        # Create figure with optimized grid
+        fig = plt.figure(figsize=(12, 8))
+
+        # Plot each filter
         i = 0
-        for filter in filters_set["psi"]:
+        for filter_idx, filter in enumerate(filters_set["psi"]):
+            j_val = filter_idx // L  # Scale
+            theta_val = filter_idx % L  # Orientation
+
+            # Skip if we exceed total filters
+            if i >= total_filters:
+                break
+
+            # Get filter and convert to visualization format
             f = filter["levels"][0]
             filter_c = fft2(f)
             filter_c = np.fft.fftshift(filter_c)
-            axs[i // L, i % L].imshow(
-                np.abs(filter_c), cmap="gray", vmin=0, vmax=1.5 * np.abs(filter_c).max()
-            )
-            axs[i // L, i % L].axis("off")
-            axs[i // L, i % L].set_title("j={}\ntheta={}".format(i // L, i % L))
-            i = i + 1
 
-        fig.suptitle(
-            (
-                r"Wavelets for each scales j and angles theta used."
-                "\nColor saturation and color hue respectively denote complex "
-                "magnitude and complex phase."
-            ),
+            # Create subplot in the grid
+            ax = fig.add_subplot(grid_height, grid_width, i + 1)
+            ax.imshow(self.colorize(filter_c))
+            ax.axis("off")
+            ax.set_title(f"j={j_val}, θ={theta_val}", fontsize=9)
+            i += 1
+
+        # Add overall title explaining the visualization
+        plt.suptitle(
+            "Wavelet Filters at Different Scales and Orientations\n"
+            "Color shows complex values: hue=phase, saturation=magnitude",
+            fontsize=14,
+        )
+
+        # Adjust layout for better spacing
+        plt.tight_layout()
+        plt.subplots_adjust(top=0.92)  # Make room for suptitle
+        plt.show()
+
+    def show_low_pass_filter(self):
+        # Low-pass filter
+        M = 32
+        J = 3
+        L = 8
+        filters_set = filter_bank(M, M, J, L=L)
+
+        plt.figure()
+        # plt.rc('text', usetex=True)
+        plt.rc("font", family="serif")
+        plt.axis("off")
+        plt.set_cmap("gray_r")
+
+        f = filters_set["phi"]["levels"][0]
+
+        filter_c = fft2(f)
+        filter_c = np.fft.fftshift(filter_c)
+        plt.suptitle(
+            ("The corresponding low-pass filter, also known as scaling " "function."),
             fontsize=13,
         )
+        # filter_c = np.abs(filter_c)
+        filter_c = self.colorize(filter_c)
+        plt.imshow(filter_c)
+
         plt.tight_layout()
-        plt.show()  # Changed from fig.show() to plt.show()
+        plt.show()
 
-    def show_conv_activations(self, val_loader):
-        """
-        Visualize activations of convolutional layers using occlusion
-        Args:
-            val_loader: DataLoader with validation data
-        """
-        # Get a single image from the validation set
-        images, labels = next(iter(val_loader))
-        random_idx = random.randint(0, len(images) - 1)
-        image = images[random_idx].unsqueeze(0).to(device)
-        label = labels[random_idx].unsqueeze(0).to(device)
+    def colorize(self, z):
+        n, m = z.shape
+        c = np.zeros((n, m, 3))
+        c[np.isinf(z)] = (1.0, 1.0, 1.0)
+        c[np.isnan(z)] = (0.5, 0.5, 0.5)
 
-        # Create an Occlusion object
-        occlusion = Occlusion(self.model)
+        idx = ~(np.isinf(z) + np.isnan(z))
+        A = (np.angle(z[idx]) + np.pi) / (2 * np.pi)
+        A = (A + 0.5) % 1.0
+        B = 1.0 / (1.0 + abs(z[idx]) ** 0.3)
+        c[idx] = [hls_to_rgb(a, b, 0.8) for a, b in zip(A, B)]
+        return c
 
-        # Compute the attribution
-        attribution = occlusion.attribute(
-            image, target=label, sliding_window_shapes=(1, 32, 32)
-        )
-
-        # Display the image alongside the attribution
-        self._display_attribution(
-            image.detach().cpu().numpy(),
-            attribution.detach().cpu().numpy(),
-            "Original Image",
-            "Occlusion Attribution",
-        )
-
-    def backpropagation(self, image):
+    def backpropagation(self, image, show_original=True):
         """
         Compute and visualize vanilla backpropagation for model interpretation
         Args:
@@ -177,10 +260,14 @@ class XAI:
 
         # Display the results
         self._display_attribution(
-            input_image, gradient, "Input Image", "Gradient Attribution"
+            input_image,
+            gradient,
+            "Input Image",
+            "Gradient Attribution",
+            show_original=show_original,
         )
 
-    def guided_backpropagation(self, image):
+    def guided_backpropagation(self, image, show_original=True):
         """
         Compute and visualize guided backpropagation for model interpretation
         Args:
@@ -229,7 +316,11 @@ class XAI:
 
         # Display the results
         self._display_attribution(
-            input_image, gradient, "Original Image", "Guided Backpropagation"
+            input_image,
+            gradient,
+            "Input Image",
+            "Guided Backpropagation",
+            show_original=show_original,
         )
 
     def _prepare_input_image(self, image):
@@ -253,7 +344,12 @@ class XAI:
         return image
 
     def _display_attribution(
-        self, input_image, attribution, input_title="Input", attr_title="Attribution"
+        self,
+        input_image,
+        attribution,
+        input_title="Input",
+        attr_title="Attribution",
+        show_original=True,
     ):
         """
         Display an input image and its attribution side by side
@@ -262,34 +358,45 @@ class XAI:
             attribution: Attribution/gradient array
             input_title: Title for the input image
             attr_title: Title for the attribution image
+            show_original: Whether to show the original image (default: True)
         """
         # Normalize images for display
-        input_image = self.normalize_image_for_display(input_image)
+        input_image = (
+            self.normalize_image_for_display(input_image) if show_original else None
+        )
         attribution = self.normalize_image_for_display(attribution)
 
         # Remove unnecessary dimensions
-        if input_image.shape[0] == 1:
-            input_image = input_image.squeeze(0)
-        if len(input_image.shape) > 2 and input_image.shape[0] == 1:
-            input_image = input_image.squeeze(0)
+        if show_original and input_image is not None:
+            if input_image.shape[0] == 1:
+                input_image = input_image.squeeze(0)
+            if len(input_image.shape) > 2 and input_image.shape[0] == 1:
+                input_image = input_image.squeeze(0)
 
         if attribution.shape[0] == 1:
             attribution = attribution.squeeze(0)
         if len(attribution.shape) > 2 and attribution.shape[0] == 1:
             attribution = attribution.squeeze(0)
 
-        # Create the plot
-        fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+        # Create the plot - adjust based on whether original image is shown
+        if show_original:
+            fig, axes = plt.subplots(1, 2, figsize=(12, 6))
 
-        # Plot the input image
-        axes[0].imshow(input_image, cmap="gray")
-        axes[0].axis("off")
-        axes[0].set_title(input_title)
+            # Plot the input image
+            axes[0].imshow(input_image, cmap="gray")
+            axes[0].axis("off")
+            axes[0].set_title(input_title)
 
-        # Plot the attribution
-        axes[1].imshow(attribution, cmap="hot")
-        axes[1].axis("off")
-        axes[1].set_title(attr_title)
+            # Plot the attribution
+            axes[1].imshow(attribution, cmap="hot")
+            axes[1].axis("off")
+            axes[1].set_title(attr_title)
+        else:
+            # Only show attribution
+            fig, ax = plt.subplots(figsize=(8, 6))
+            ax.imshow(attribution, cmap="hot")
+            ax.axis("off")
+            ax.set_title(attr_title)
 
         plt.tight_layout()
         plt.show()
