@@ -3,33 +3,10 @@
 % Theme settings
 \usetheme{metropolis}
 \usefonttheme{professionalfonts}
-\usecolortheme{default}
 \usepackage[utf8]{inputenc}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{booktabs}
-
-% Theme and color settings
-\definecolor{background}{RGB}{255,255,255}
-\setbeamercolor{background canvas}{bg=background}
-\setbeamercolor{normal text}{fg=black}
-\setbeamercolor{frametitle}{bg=background, fg=black}
-\setbeamercolor{title}{fg=black}
-\setbeamercolor{subtitle}{fg=black}
-\setbeamercolor{section title}{fg=black}
-\setbeamercolor{footline}{fg=black, bg=background}
-\setbeamercolor{block title}{bg=gray!15,fg=black}
-\setbeamercolor{block body}{bg=white,fg=black}
-
-% Font size adjustments
-\setbeamerfont{frametitle}{size=\small}
-\setbeamerfont{title}{size=\Large}
-\setbeamerfont{subtitle}{size=\normalsize}
-\setbeamerfont{author}{size=\small}
-\setbeamerfont{date}{size=\small}
-\setbeamerfont{block title}{size=\small}
-\setbeamerfont{itemize/enumerate body}{size=\small}
-\setbeamerfont{itemize/enumerate subbody}{size=\footnotesize}
 
 % Title info
 \title{Visual Intelligence: Lung Cancer Histopathological Classification}
@@ -50,12 +27,12 @@
 \begin{itemize}
 \item \textbf{Dataset}: Lung cancer histopathological images (3 classes):
   \begin{itemize}
-  \item \textbf{Adenocarcinoma}
-  \item \textbf{Squamous cell carcinoma}
-  \item \textbf{Benign tissue}
+  \item \emph{Adenocarcinoma}
+  \item \emph{Squamous cell carcinoma}
+  \item \emph{Benign tissue}
   \end{itemize}
-\item \textbf{Classification Task}: \textbf{Binary classification} (adenocarcinoma vs benign tissue)
-\item \textbf{Challenge}: Distinguishing \textbf{subtle tissue patterns} and \textbf{cellular structures}
+\item \textbf{Classification Task}: \emph{Binary classification} (adenocarcinoma vs benign tissue)
+\item \textbf{Challenge}: Distinguishing \emph{subtle tissue patterns} and \emph{cellular structures}
 \end{itemize}
 \end{column}
 \begin{column}{0.5\textwidth}
@@ -69,12 +46,12 @@
 % Project Goals slide
 \begin{frame}{Project Goals}
 \begin{itemize}
-\item Compare \textbf{traditional CNN} vs \textbf{ScatNet} approaches (in particular for feature extraction)
-\item Achieve \textbf{high accuracy} with \textbf{interpretable results}
-\item Apply \textbf{explainable AI techniques} to validate model decisions, in particular:
+\item Compare \emph{traditional CNN} vs \emph{ScatNet} approaches (in particular for feature extraction)
+\item Achieve \emph{high accuracy} with \emph{interpretable results}
+\item Apply \emph{explainable AI techniques} to validate model decisions, in particular:
   \begin{itemize}
-  \item \textbf{Attribution analysis} with \textbf{guided backpropagation} 
-  \item \textbf{Filter analysis} to understand learned patterns
+  \item \emph{Attribution analysis} with \emph{guided backpropagation} 
+  \item \emph{Filter analysis} to understand learned patterns
   \end{itemize}
 \end{itemize}
 \end{frame}
@@ -84,18 +61,18 @@
 \begin{columns}[T]
 \begin{column}{0.6\textwidth}
 \begin{itemize}
-\item \textbf{Dataset Organization}:
+\item \emph{Dataset Organization}:
   \begin{itemize}
-  \item \textbf{K-fold cross-validation} with 10 folds
+  \item \emph{K-fold cross-validation} with 10 folds
   \item Class distributions already balanced
-  \item Image size kept at \textbf{768×768 pixels}
-  \item \textbf{Grayscale conversion} for analysis
+  \item Image size kept at \emph{768×768 pixels}
+  \item \emph{Grayscale conversion} for analysis
   \end{itemize}
 \end{itemize}
 
-\begin{block}{Key Finding}
-Using grayscale images for analysis because with only color images, the model achieved high accuracy by learning \textbf{color distributions}
-\end{block}
+\begin{alertblock}{Key Finding}
+Using grayscale images for analysis because with only color images, the model achieved high accuracy by learning \emph{color distributions}
+\end{alertblock}
 \end{column}
 \begin{column}{0.4\textwidth}
 \begin{figure}
@@ -110,14 +87,14 @@ Using grayscale images for analysis because with only color images, the model ac
 \begin{columns}[T]
 \begin{column}{0.5\textwidth}
 \begin{itemize}
-\item Image \textbf{normalization} and \textbf{standardization} for each fold
+\item Image \emph{normalization} and \emph{standardization} for each fold
 \item The dataset already includes augmentation, but I added some more:
   \begin{itemize}
-  \item Random rotations
-  \item Random flips
-  \item Color jittering
-  \item Random cropping
-  \item Gaussian noise
+  \item \emph{Random rotations}
+  \item \emph{Random flips}
+  \item \emph{Color jittering}
+  \item \emph{Random cropping}
+  \item \emph{Gaussian noise}
   \end{itemize}
 \end{itemize}
 \end{column}
@@ -134,23 +111,23 @@ Using grayscale images for analysis because with only color images, the model ac
 \begin{columns}[T]
 \begin{column}{0.6\textwidth}
 \begin{itemize}
-\item \textbf{Efficient Feature Extraction Design}:
+\item \emph{Efficient Feature Extraction Design}:
   \begin{itemize}
-  \item Similar to \textbf{ResNet architecture} without skip connections
+  \item Similar to \emph{ResNet architecture} without skip connections
   \item Three progressive convolutional blocks (16→16→24 filters)
-  \item First convolutional layer with \textbf{11×11 kernel}
-  \item Strategic dimensionality reduction via \textbf{max pooling}
-  \item \textbf{Batch normalization} for improved training stability
-  \item \textbf{ReLU activations} for non-linear patterns
+  \item First convolutional layer with \emph{11×11 kernel}
+  \item Strategic dimensionality reduction via \emph{max pooling}
+  \item \emph{Batch normalization} for improved training stability
+  \item \emph{ReLU activations} for non-linear patterns
   \end{itemize}
 \end{itemize}
 
-\begin{block}{Key Findings}
+\begin{alertblock}{Key Findings}
 \begin{itemize}
-\item Achieves \textbf{exceptional classification accuracy} despite minimal parameters
+\item Achieves \emph{exceptional classification accuracy} despite minimal parameters
 \item First layer filters may not appear visually interpretable with small learning rates
 \end{itemize}
-\end{block}
+\end{alertblock}
 \end{column}
 \begin{column}{0.4\textwidth}
 \begin{figure}
@@ -218,9 +195,9 @@ ScatNetImageClassifier(
   \end{itemize}
 \end{itemize}
 
-\begin{block}{Key Finding}
+\begin{alertblock}{Key Finding}
 Requires \textbf{more complex classifier} layer for good performance
-\end{block}
+\end{alertblock}
 \end{column}
 \end{columns}
 \end{frame}
@@ -266,24 +243,24 @@ Requires \textbf{more complex classifier} layer for good performance
 \begin{table}
 \begin{tabular}{lll}
 \toprule
-Metric & CNN & ScatNet \\
+Metric & \emph{CNN} & \emph{ScatNet} \\
 \midrule
-Mean Accuracy & \textbf{99.26\% ± 0.72\%} & \textbf{92.99\% ± 1.59\%} \\
-Mean F1 Score & \textbf{99.27\% ± 0.72\%} & \textbf{92.83\% ± 1.70\%} \\
-Accuracy Range & \textbf{97.70\% - 99.90\%} & \textbf{89.10\% - 95.10\%} \\
-Training Speed & \textbf{Faster} & \textbf{Slower} \\
+Mean Accuracy & \emph{99.26\% ± 0.72\%} & \emph{92.99\% ± 1.59\%} \\
+Mean F1 Score & \emph{99.27\% ± 0.72\%} & \emph{92.83\% ± 1.70\%} \\
+Accuracy Range & \emph{97.70\% - 99.90\%} & \emph{89.10\% - 95.10\%} \\
+Training Speed & \emph{Faster} & \emph{Slower} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\begin{block}{Key Performance Findings}
+\begin{alertblock}{Key Performance Findings}
 \begin{itemize}
-\item CNN \textbf{significantly outperforms} ScatNet (by \textbf{6.27\%})
-\item K-fold validation confirms \textbf{robust performance}
-\item CNN shows \textbf{less variance} between folds
-\item CNN achieves convergence in \textbf{fewer epochs}
+\item \emph{CNN significantly outperforms} ScatNet (by \emph{6.27\%})
+\item \emph{K-fold validation} confirms \emph{robust performance}
+\item \emph{CNN} shows \emph{less variance} between folds
+\item \emph{CNN} achieves convergence in \emph{fewer epochs}
 \end{itemize}
-\end{block}
+\end{alertblock}
 \end{frame}
 
 % Performance Summary slides
@@ -425,9 +402,9 @@ Training Speed & \textbf{Faster} & \textbf{Slower} \\
 % Key Insights slide
 \begin{frame}{Key Insights}
 \begin{itemize}
-\item \textbf{Color features} are not crucial for lung cancer histopathology classification
-\item \textbf{Learned features} (CNN), in this scenario, are more effective than \textbf{pre-defined features} (ScatNet)
-\item \textbf{CNN} are harder to train but yield \textbf{better performance}
+\item \emph{Color features} are not crucial for lung cancer histopathology classification
+\item \emph{Learned features} (CNN), in this scenario, are more effective than \emph{pre-defined features} (ScatNet)
+\item \emph{CNN} are harder to train but yield \emph{better performance}
 \end{itemize}
 \end{frame}
 
