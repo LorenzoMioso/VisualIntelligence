@@ -20,7 +20,6 @@ Key features:
 
 - Python 3.11
 - 8GB VRAM
-- Required packages listed in `requirements.txt`
 
 ## Usage
 

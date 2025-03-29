@@ -2,6 +2,7 @@
 
 % Theme settings
 \usetheme{metropolis}
+\usefonttheme{professionalfonts}
 \usecolortheme{default}
 \usepackage[utf8]{inputenc}
 \usepackage{graphicx}
@@ -53,7 +54,7 @@
   \item \textbf{Squamous cell carcinoma}
   \item \textbf{Benign tissue}
   \end{itemize}
-\item \textbf{Classification Task}: \textbf{Binary classification} (adenocarcinoma vs benign)
+\item \textbf{Classification Task}: \textbf{Binary classification} (adenocarcinoma vs benign tissue)
 \item \textbf{Challenge}: Distinguishing \textbf{subtle tissue patterns} and \textbf{cellular structures}
 \end{itemize}
 \end{column}
@@ -68,10 +69,13 @@
 % Project Goals slide
 \begin{frame}{Project Goals}
 \begin{itemize}
-\item Compare \textbf{traditional CNN} vs \textbf{ScatNet} approaches
-\item Investigate \textbf{color} vs \textbf{structural features}
+\item Compare \textbf{traditional CNN} vs \textbf{ScatNet} approaches (in particular for feature extraction)
 \item Achieve \textbf{high accuracy} with \textbf{interpretable results}
-\item Apply \textbf{explainable AI techniques} to validate model decisions
+\item Apply \textbf{explainable AI techniques} to validate model decisions, in particular:
+  \begin{itemize}
+  \item \textbf{Attribution analysis} with \textbf{guided backpropagation} 
+  \item \textbf{Filter analysis} to understand learned patterns
+  \end{itemize}
 \end{itemize}
 \end{frame}
 
@@ -107,7 +111,7 @@ Using grayscale images for analysis because with only color images, the model ac
 \begin{column}{0.5\textwidth}
 \begin{itemize}
 \item Image \textbf{normalization} and \textbf{standardization} for each fold
-\item Data augmentation decisions:
+\item The dataset already includes augmentation, but I added some more:
   \begin{itemize}
   \item Random rotations
   \item Random flips
@@ -133,7 +137,7 @@ Using grayscale images for analysis because with only color images, the model ac
 \item \textbf{Efficient Feature Extraction Design}:
   \begin{itemize}
   \item Similar to \textbf{ResNet architecture} without skip connections
-  \item Three progressive convolutional blocks (16→16→24)
+  \item Three progressive convolutional blocks (16→16→24 filters)
   \item First convolutional layer with \textbf{11×11 kernel}
   \item Strategic dimensionality reduction via \textbf{max pooling}
   \item \textbf{Batch normalization} for improved training stability
@@ -289,7 +293,7 @@ Training Speed & \textbf{Faster} & \textbf{Slower} \\
 \item Accuracy: \textbf{98.00\% - 99.90\%} across all folds
 \item F1 Score: \textbf{98.01\% - 99.90\%} across all folds
 \item Most consistent fold: \textbf{Fold 9} (99.90\% accuracy)
-\item All folds achieved \textbf{>97.70\% accuracy}
+\item All folds achieved \textbf{\textgreater{}97.70\% accuracy}
 \end{itemize}
 
 \textbf{Overall Statistics:}
@@ -372,7 +376,7 @@ Training Speed & \textbf{Faster} & \textbf{Slower} \\
 \begin{column}{0.5\textwidth}
 \begin{itemize}
 \item Visualizes regions \textbf{most influential} for classification
-\item \textbf{Guided backpropagation} significantly reduces noise compared to regular backprop
+\item \textbf{Guided backpropagation} significantly reduces noise compared to regular backpropagation
 \item \textbf{Higher resolution} feature attribution with clearer patterns
 \item Captum implementation shows \textbf{similar patterns} despite different color scaling
 \item \textbf{Strong correlation} with pathological markers across all methods
@@ -396,7 +400,7 @@ Training Speed & \textbf{Faster} & \textbf{Slower} \\
 \begin{columns}[T]
 \begin{column}{0.5\textwidth}
 \begin{itemize}
-\item \textbf{Minimal difference} between guided and regular backpropagation
+\item \textbf{Minimal differences} between guided and regular backpropagation
 \item Limited impact of guided backprop due to \textbf{ReLU only in classifier}
 \item \textbf{Non-recognizable patterns} in guided backprop visualization
 \item Attribution shows \textbf{diffuse, less interpretable regions}
