@@ -131,73 +131,55 @@ Using grayscale images for analysis because with only color images, the model ac
 \end{column}
 \begin{column}{0.4\textwidth}
 \begin{figure}
-\includegraphics[width=0.9\textwidth]{imgs/cnn_basic_block.png}
+\includegraphics[width=0.9\textwidth]{imgs/cnn_arch.png}
 \end{figure}
 \end{column}
 \end{columns}
 \end{frame}
 
-% CNN Architecture Details slide
-\begin{frame}[fragile]{CNN Architecture Details}
+% Feature Classifier Architecture slide
+\begin{frame}{Feature Classifier}
 \begin{columns}[T]
 \begin{column}{0.6\textwidth}
-\begin{verbatim}
-CNNImageClassifier(
-  (features): Sequential(
-    (0): Conv2d(1, 16, kernel_size=(11, 11), stride=(2, 2))
-    (1): BatchNorm2d(16)
-    (2): ReLU()
-    (3): MaxPool2d(kernel_size=2, stride=2)
-    ...
-  )
-  (classifier): FeatureClassifier(
-    (fc1): Linear(384, 16)
-    (bn): BatchNorm1d(16)
-    (relu): ReLU()
-    (do): Dropout(p=0.5)
-    (fc2): Linear(16, 2)
-  )
-)
-\end{verbatim}
+\begin{itemize}
+\item Single hidden layer with 16 neurons
+\item \emph{BatchNorm} for stability and faster convergence
+\item \emph{ReLU activation} for non-linearity
+\item \emph{Dropout (0.5)} for regularization
+\item Final layer with 2 output neurons (softmax activation)
+\end{itemize}
 \end{column}
 \begin{column}{0.4\textwidth}
-\begin{itemize}
-\item Total parameters: \textbf{14,090}
-\item Model size: \textbf{52.58MB}
-\item \textbf{Efficient architecture} with minimal parameters
-\end{itemize}
+\begin{figure}
+\includegraphics[width=\textwidth]{imgs/classifier_arch.png}
+\end{figure}
 \end{column}
 \end{columns}
 \end{frame}
 
 % ScatNet Architecture slide
-\begin{frame}[fragile]{ScatNet Model Architecture}
+\begin{frame}{ScatNet Model Architecture}
 \begin{columns}[T]
 \begin{column}{0.6\textwidth}
-\begin{verbatim}
-ScatNetImageClassifier(
-  (scattering): Scattering2D()
-  (global_pool): AdaptiveAvgPool2d(4, 4)
-  (classifier): FeatureClassifier(
-    (fc1): Linear(3472, 16)
-    ...
-  )
-)
-\end{verbatim}
-\end{column}
-\begin{column}{0.4\textwidth}
 \begin{itemize}
 \item \textbf{Wavelet-based feature extraction}:
   \begin{itemize}
   \item \textbf{J=3} scale parameter for wavelet decomposition
   \item \textbf{L=8} orientations, \textbf{M=2} scattering order
   \item \textbf{Translation}, \textbf{rotation}, and \textbf{scaling invariant}
+  \item Followed by global average pooling (4×4)
+  \item 3,472 features fed to the classifier
   \end{itemize}
 \end{itemize}
 
 \begin{alertblock}{Key Finding}
 Requires \textbf{more complex classifier} layer for good performance
 \end{alertblock}
+\end{column}
+\begin{column}{0.4\textwidth}
+\begin{figure}
+\includegraphics[width=\textwidth]{imgs/scatnet_arch.png}
+\end{figure}
 \end{column}
 \end{columns}
 \end{frame}
@@ -404,7 +386,7 @@ Training Speed & \emph{Faster} & \emph{Slower} \\
 \begin{itemize}
 \item \emph{Color features} are not crucial for lung cancer histopathology classification
 \item \emph{Learned features} (CNN), in this scenario, are more effective than \emph{pre-defined features} (ScatNet)
-\item \emph{CNN} are harder to train but yield \emph{better performance}
+\item \emph{CNN} is harder to train but yields \emph{better performance}
 \end{itemize}
 \end{frame}
 

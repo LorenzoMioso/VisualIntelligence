@@ -37,4 +37,4 @@ pip install -r requirements.txt
 jupyter notebook main.ipynb
 ```
 
-For detailed methodology and results, refer to the presentation in `doc/presentation.pdf`.
+Report and presentation are available in the `doc` folder.
