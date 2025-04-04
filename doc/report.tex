@@ -22,7 +22,7 @@
 \maketitle
 
 \begin{abstract}
-This report compares Convolutional Neural Networks (CNNs) and Scattering Networks (ScatNets) for lung cancer histopathological image classification. Evaluating both models on adenocarcinoma and benign tissue samples, I found that CNNs achieve superior performance (99.26\% accuracy vs ScatNet's 92.99\%), despite ScatNet's theoretical advantages of translation and rotation invariance. Grayscale features proved sufficient for accurate classification, indicating tissue morphology rather than staining drives model decisions. Analysis through guided backpropagation revealed CNNs produce more interpretable and pathologically relevant attribution maps compared to ScatNet's diffuse visualizations.
+This report compares Convolutional Neural Networks (CNNs) and Scattering Networks (ScatNets) for lung cancer histopathological image classification. Evaluating both models on adenocarcinoma and benign tissue samples, I found that CNNs achieve superior performance (99.26\% accuracy vs ScatNet's 92.99\%), despite ScatNet's theoretical advantages of translation and rotation invariance. Analysis with explainable AI techniques, including guided backpropagation, has been employed to interpret model decisions. The are hard to but the CNN's learned filters and model attribution maps align more closely with pathologically relevant features, while ScatNet's fixed wavelet filters yield less interpretable results. This study highlights the importance of model choice in histopathological image analysis and suggests that CNNs are more suitable for clinical applications due to their ability to learn domain-specific features.
 \end{abstract}
 
 \section{Introduction}
@@ -56,6 +56,7 @@ Initial experiments revealed that models achieved near-perfect accuracy by learn
 
 My preprocessing pipeline included:
 \begin{itemize}
+    \item Image size kept at 768×768 pixels, in order to analyze small structures
     \item Grayscale conversion
     \item Per-fold normalization and standardization
     \item Data augmentation: random rotations, flips, color jittering, cropping, and Gaussian noise
@@ -104,6 +105,23 @@ Key architectural elements include:
     \item ReLU activations for modeling non-linear relationships
 \end{itemize}
 
+\subsection{Feature Classifier}
+Both the CNN and ScatNet feature extractors feed into the same classifier architecture:
+\begin{itemize}
+    \item Single hidden layer with 16 neurons
+    \item Batch normalization for training stability
+    \item ReLU activation for non-linear patterns
+    \item Dropout (0.5) for regularization
+    \item Output layer with 2 neurons and softmax activation
+\end{itemize}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.8\columnwidth]{imgs/classifier_arch.png}
+\caption{Feature classifier architecture used with both CNN and ScatNet}
+\label{fig:classifier_arch}
+\end{figure}
+
 \subsection{Scattering Transform}
 The scattering transform is a mathematical operation that creates representations of signals invariant to translations and stable to deformations. It operates by cascading wavelet transforms with non-linear modulus operators, followed by local averaging.
 
@@ -143,26 +161,12 @@ The ScatNet processes images through a series of wavelet transformations, produc
 \label{fig:scatnet_arch}
 \end{figure}
 
-\subsection{Feature Classifier}
-Both the CNN and ScatNet feature extractors feed into the same classifier architecture:
-\begin{itemize}
-    \item Single hidden layer with 16 neurons
-    \item Batch normalization for training stability
-    \item ReLU activation for non-linear patterns
-    \item Dropout (0.5) for regularization
-    \item Output layer with 2 neurons and softmax activation
-\end{itemize}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.8\columnwidth]{imgs/classifier_arch.png}
-\caption{Feature classifier architecture used with both CNN and ScatNet}
-\label{fig:classifier_arch}
-\end{figure}
 
 \section{Training and Evaluation}
 \subsection{Training Methodology}
 Both models were trained using 10-fold cross-validation with Adam optimizer, but required different learning rate approaches. CNNs benefited from higher learning rates (1e-3 to 5e-3) to develop effective filters capturing subtle tissue patterns, while ScatNet used more conservative rates. The CNN demonstrated rapid convergence (typically within 15 epochs) with minimal overfitting and consistent performance across folds. In contrast, ScatNet required fewer training epochs but showed slower per-epoch convergence and greater cross-fold variance. Early stopping was implemented to prevent overfitting, with model checkpointing to save the best-performing weights.
+
+A significant practical consideration was the computational efficiency of each approach. The scattering transform on large 768×768 images proved computationally intensive, running approximately 5 times slower than the CNN model on the same system. This performance difference adds an important practical dimension to model selection, particularly for real-time or resource-constrained clinical applications.
 
 \section{Results and Analysis}
 \subsection{Performance Metrics}
@@ -176,8 +180,8 @@ Both models were evaluated using accuracy and F1 score across all 10 folds. Tabl
 \toprule
 Metric & CNN & ScatNet \\
 \midrule
-Mean Accuracy & 99.26\% ± 0.72\% & 92.99\% ± 1.59\% \\
-Mean F1 Score & 99.27\% ± 0.72\% & 92.83\% ± 1.70\% \\
+Mean Acc. & 99.26\% ± 0.72\% & 92.99\% ± 1.59\% \\
+Mean F1 & 99.27\% ± 0.72\% & 92.83\% ± 1.70\% \\
 Best Fold & 99.90\% (Fold 9) & 95.10\% (Fold 6) \\
 \bottomrule
 \end{tabular}
@@ -226,12 +230,23 @@ Unlike CNN, ScatNet uses predefined wavelet filters rather than learned ones. Fi
 \label{fig:scatnet_filters}
 \end{figure}
 
+An essential component of the ScatNet architecture is the low pass filter, which averages local information and provides translation invariance, as illustrated in Figure \ref{fig:scatnet_low_pass}.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.7\columnwidth]{imgs/scatnet_low_pass.png}
+\caption{Low pass filter used in ScatNet for translation invariance}
+\label{fig:scatnet_low_pass}
+\end{figure}
+
 While these filters provide theoretical advantages:
 \begin{itemize}
     \item Scale and rotation invariance
     \item Mathematical guarantees on stability
     \item No learning required
 \end{itemize}
+
+The low pass filter acts as a smoothing operation that captures the average intensity distribution within image regions, complementing the directional wavelet filters. This combination of directional wavelets and low pass filtering enables ScatNet to represent both fine details and global structures in medical images.
 
 Their fixed nature limits adaptability to the specific characteristics of histopathological images, potentially explaining ScatNet's lower performance despite its solid theoretical foundation.
 
@@ -321,6 +336,60 @@ Notable differences:
 
 The limited improvement seen with guided backpropagation in ScatNet can be attributed to its architecture, where non-linearities (ReLU) are only present in the classifier component, not in the feature extraction process. This architectural difference significantly affects how attribution methods perform.
 
+\subsection{Custom vs. Library Implementation}
+My experiments included a comparison between a custom implementation of guided backpropagation and the implementation available in the Captum library. Figure \ref{fig:gbp_comparison_cnn} and Figure \ref{fig:gbp_comparison_scatnet} present this comparison for CNN and ScatNet models, respectively.
+
+\begin{figure}[h]
+\centering
+\begin{subfigure}{0.32\columnwidth}
+\includegraphics[width=\linewidth]{imgs/normal_image.png}
+\caption{Original image}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.32\columnwidth}
+\includegraphics[width=\linewidth]{imgs/cnn_gbp.png}
+\caption{Custom implementation}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.32\columnwidth}
+\includegraphics[width=\linewidth]{imgs/cnn_gbp_captum.png}
+\caption{Captum library}
+\end{subfigure}
+\caption{Comparison of CNN guided backpropagation visualizations between custom implementation and Captum library}
+\label{fig:gbp_comparison_cnn}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\begin{subfigure}{0.32\columnwidth}
+\includegraphics[width=\linewidth]{imgs/normal_image.png}
+\caption{Original image}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.32\columnwidth}
+\includegraphics[width=\linewidth]{imgs/scatnet_gbp.png}
+\caption{Custom implementation}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.32\columnwidth}
+\includegraphics[width=\linewidth]{imgs/scatnet_gbp_captum.png}
+\caption{Captum library}
+\end{subfigure}
+\caption{Comparison of ScatNet guided backpropagation visualizations between custom implementation and Captum library}
+\label{fig:gbp_comparison_scatnet}
+\end{figure}
+
+For both models, the custom implementation produced more interpretable attribution maps with several notable differences:
+
+\begin{itemize}
+    \item \textbf{Feature clarity}: The custom implementation resulted in sharper delineation of cellular structures, particularly nuclei and tissue boundaries in CNN visualizations
+    \item \textbf{Reduced artifacts}: Less noise and fewer irrelevant highlights appeared in the custom implementation compared to Captum
+\end{itemize}
+
+The superior interpretability of the custom guided backpropagation implementation can be attributed to specific implementation details tailored to the histopathological domain. Where the Captum library provides a generalized implementation suitable for diverse applications, the custom approach was specifically optimized for the characteristics of histopathological images and the architectural nuances of the models under study.
+
+These findings highlight the importance of domain-specific adaptation even for standardized explainability techniques. The improved visualization quality of the custom implementation helps pathologists better understand model decisions by more clearly identifying the morphological features driving classification outcomes.
+
 \section{Discussion}
 \subsection{Performance Gap Analysis}
 The substantial performance gap between CNN and ScatNet (6.27\% mean accuracy difference) can be attributed to several factors:
@@ -328,7 +397,6 @@ The substantial performance gap between CNN and ScatNet (6.27\% mean accuracy di
 \begin{itemize}
     \item \textbf{Adaptability}: CNN filters are learned specifically for the histopathology domain, while ScatNet uses fixed mathematical wavelets.
     \item \textbf{Feature specificity}: CNN develops task-specific feature detectors that identify diagnostically relevant patterns in lung tissue.
-    \item \textbf{Hierarchical learning}: CNN's multi-layer structure progressively builds more complex feature representations.
     \item \textbf{Over-generalization}: ScatNet's invariance properties, while theoretically advantageous, may discard discriminative information relevant to cancer detection.
 \end{itemize}
 
@@ -359,8 +427,6 @@ Despite the strong results, this study has several limitations that should be ac
     \item \textbf{Binary classification focus}: The study addresses only binary classification (adenocarcinoma vs. benign), whereas clinical applications often require multi-class discrimination between different cancer subtypes.
     
     \item \textbf{Fixed architecture comparison}: The comparison evaluates specific implementations of CNN and ScatNet rather than the full range of possible architectures within each approach.
-    
-    \item \textbf{Limited interpretability methods}: While guided backpropagation provides valuable insights, additional explainability techniques could offer complementary perspectives on model decision processes.
 \end{itemize}
 
 \section{Conclusion}
@@ -368,14 +434,6 @@ This study compared CNN and ScatNet approaches for lung cancer histopathological
 
 The superior performance of CNNs can be attributed to their ability to learn domain-specific features directly from the data, adapting to the unique characteristics of histopathological images. The guided backpropagation analysis further revealed that CNN models focus on pathologically relevant regions, providing more interpretable and clinically aligned visualizations than ScatNet.
 
-Based on these findings, I recommend:
-\begin{itemize}
-    \item \textbf{Clinical implementation}: Deploy CNN-based systems for computer-aided diagnosis in lung histopathology with confidence in their accuracy and interpretability.
-    \item \textbf{Model validation}: Conduct multi-center validation studies to verify CNN performance across different laboratory and staining protocols.
-    \item \textbf{Feature extraction}: Consider using the identified CNN filters as standardized feature extractors for other histopathology applications.
-    \item \textbf{Interpretability tools}: Integrate guided backpropagation visualization into pathologist workflow to enhance model trust and adoption.
-\end{itemize}
-
-Future work should explore hybrid approaches combining the adaptability of CNNs with the mathematical guarantees of ScatNets to potentially achieve both high performance and robust interpretability.
+Probably an hybrid approach combining the strengths of both methods could yield even better results.
 
 \end{document}

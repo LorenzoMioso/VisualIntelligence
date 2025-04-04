@@ -31,10 +31,8 @@ pip install -r requirements.txt
 
 2. Download the dataset from [Kaggle](https://www.kaggle.com/datasets/rm1000/lung-cancer-histopathological-images) and place the zipped file in the root directory.
 
-3. For interactive exploration, use Jupyter notebook:
+3. For interactive exploration, use Jupyter notebook in `main.ipynb`:
 
-```bash
-jupyter notebook main.ipynb
-```
+## Report and Presentation
 
 Report and presentation are available in the `doc` folder.
